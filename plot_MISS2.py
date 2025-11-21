@@ -113,7 +113,7 @@ if __name__ == "__main__":
     import ast
     
    # Create output directory for plots
-    plots_dir = 'miss_plots'
+    plots_dir = 'MISS_plots'
     if not os.path.exists(plots_dir):
         os.makedirs(plots_dir)
 
