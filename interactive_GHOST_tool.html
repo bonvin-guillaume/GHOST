@@ -43,37 +43,46 @@
             display: table-cell;
         }
         
-        /* Add toggle button styling */
-        .comment-toggle {
-            display: inline-block;
-            padding: 8px 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #ffffff;
-            border: none;
-            border-radius: 6px;
+        /* Add checkbox control styling */
+        .column-controls {
+            display: flex;
+            gap: 25px;
+            margin-bottom: 0;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            background: rgba(30, 30, 46, 0.95);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            flex-shrink: 0;
+        }
+        
+        .checkbox-label {
+            display: inline-flex;
+            align-items: center;
             cursor: pointer;
-            font-size: 0.9em;
-            font-weight: 600;
-            margin-bottom: 15px;
+            user-select: none;
+            font-size: 0.95em;
+            font-weight: 500;
+            color: #e0e0e0;
+            transition: color 0.2s ease;
+        }
+        
+        .checkbox-label:hover {
+            color: #a78bfa;
+        }
+        
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
             margin-right: 10px;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-            transition: all 0.3s ease;
+            cursor: pointer;
+            accent-color: #667eea;
         }
         
-        .comment-toggle:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
-            transform: translateY(-2px);
-        }
-        
-        .comment-toggle::before {
-            content: '▶ ';
-            display: inline-block;
-            transition: transform 0.3s ease;
-        }
-        
-        .comment-toggle.expanded::before {
-            content: '▼ ';
+        .checkbox-label input[type="checkbox"]:checked {
+            accent-color: #764ba2;
         }
         
         .container {
@@ -133,8 +142,18 @@
         .table-container {
             flex: 1;
             min-width: 300px;
-            overflow-x: auto;
             padding-right: 15px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 40px);
+        }
+        
+        .table-wrapper {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: auto;
+            position: relative;
         }
         
         .resize-handle {
@@ -216,7 +235,15 @@
         }
         
         #miss-viewer {
-            min-height: 310px;
+            height: 350px;
+            min-height: 350px;
+        }
+        
+        #miss-viewer img {
+            max-height: 100%;
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
         }
         
         #sony-viewer {
@@ -265,12 +292,13 @@
             border-spacing: 0;
             background: #2a2a3e;
             border-radius: 8px;
-            overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
         
         .dataframe thead {
             background: linear-gradient(135deg, #4a4a6a 0%, #3a3a5a 100%);
+            position: relative;
+            z-index: 98;
         }
         
         .dataframe thead th {
@@ -282,6 +310,12 @@
             font-size: 0.95em;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+            background: linear-gradient(135deg, #4a4a6a 0%, #3a3a5a 100%);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         
         .dataframe tbody tr {
@@ -366,18 +400,25 @@
                 <li>Click on any file in the MISS Files, SONY Files, or GOA Files columns to view it in the panel on the right</li>
                 <li>MISS/MISS2 files will display their spectral plots 📈</li>
                 <li>SONY and GOA files will display the images 📷</li>
-                <li>Click the 'Show AllskyGOA' button to toggle the GOA Files column and viewer</li>
-                <li>Click the 'Show Comments' button to toggle the Comments column</li>
+                <li>Use the checkboxes below to toggle the GOA Files and Comments columns</li>
             </ul>
             <p><em>Note: MISS plots are pre-generated and saved in the MISS_plots folder.</em></p>
         </div>
         
-        <button class="comment-toggle" id="goa-toggle">Show AllskyGOA</button>
-        <button class="comment-toggle" id="comment-toggle">Show Comments</button>
-        
         <div class="main-layout">
             <div class="table-container">
-                <table border="1" class="dataframe table table-striped">
+                <div class="column-controls">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="goa-checkbox">
+                        <span>Show AllskyGOA Files</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="comment-checkbox">
+                        <span>Show Comments</span>
+                    </label>
+                </div>
+                <div class="table-wrapper">
+                    <table border="1" class="dataframe table table-striped">
   <thead>
     <tr style="text-align: left;">
       <th>Date</th>
@@ -647,6 +688,7 @@
     </tr>
   </tbody>
 </table>
+                </div>
             </div>
             
             <div class="resize-handle" id="resize-handle"></div>
@@ -695,33 +737,28 @@
             const goaFilename = document.getElementById('goa-filename');
             const goaViewerSection = document.getElementById('goa-viewer-section');
             
-            // GOA toggle functionality
-            const goaToggle = document.getElementById('goa-toggle');
+            // GOA checkbox functionality
+            const goaCheckbox = document.getElementById('goa-checkbox');
             const dataframeTable = document.querySelector('.dataframe');
             
-            goaToggle.addEventListener('click', function() {
-                dataframeTable.classList.toggle('goa-visible');
-                goaViewerSection.classList.toggle('visible');
-                this.classList.toggle('expanded');
-                
-                if (dataframeTable.classList.contains('goa-visible')) {
-                    this.textContent = 'Hide AllskyGOA';
+            goaCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    dataframeTable.classList.add('goa-visible');
+                    goaViewerSection.classList.add('visible');
                 } else {
-                    this.textContent = 'Show AllskyGOA';
+                    dataframeTable.classList.remove('goa-visible');
+                    goaViewerSection.classList.remove('visible');
                 }
             });
             
-            // Comment toggle functionality
-            const commentToggle = document.getElementById('comment-toggle');
+            // Comment checkbox functionality
+            const commentCheckbox = document.getElementById('comment-checkbox');
             
-            commentToggle.addEventListener('click', function() {
-                dataframeTable.classList.toggle('comments-visible');
-                this.classList.toggle('expanded');
-                
-                if (dataframeTable.classList.contains('comments-visible')) {
-                    this.textContent = 'Hide Comments';
+            commentCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    dataframeTable.classList.add('comments-visible');
                 } else {
-                    this.textContent = 'Show Comments';
+                    dataframeTable.classList.remove('comments-visible');
                 }
             });
             
