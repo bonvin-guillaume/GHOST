@@ -1,6 +1,9 @@
 # BACC_frames folder
 BACC_frames/
 
+# MISS_plots folder
+MISS_plots/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -26,7 +29,6 @@ ENV/
 # Data files
 *.csv
 *.pkl
-miss_plots/
 ghost_events_table.html
 ghost_events_with_files.pkl
 
