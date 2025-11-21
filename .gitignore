@@ -1,0 +1,32 @@
+# BACC_frames folder
+BACC_frames/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Data files
+*.csv
+*.pkl
+miss_plots/
+ghost_events_table.html
+ghost_events_with_files.pkl
+
