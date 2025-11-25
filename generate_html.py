@@ -329,8 +329,25 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             overflow-y: auto;
         }}
         
+        /* Grid container for viewers - switches between 1 and 2 columns */
+        .viewers-grid {{
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }}
+        
+        /* Two-column layout when panel is wide enough and multiple sources selected */
+        .viewer-panel.two-column .viewers-grid {{
+            grid-template-columns: 1fr 1fr;
+        }}
+        
+        /* Ensure MISS viewer spans full width in two-column mode */
+        .viewer-panel.two-column .viewer-section:first-child {{
+            grid-column: 1 / -1;
+        }}
+        
         .viewer-section {{
-            margin-bottom: 30px;
+            margin-bottom: 0;
         }}
         
         .viewer-section h3 {{
@@ -426,6 +443,20 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             max-height: 480px;
             width: auto;
             max-width: 100%;
+        }}
+        
+        /* Adjust image heights in two-column mode for better fit */
+        .viewer-panel.two-column #sony-viewer,
+        .viewer-panel.two-column #goa-viewer,
+        .viewer-panel.two-column #bacc-viewer {{
+            height: 450px;
+            min-height: 450px;
+        }}
+        
+        .viewer-panel.two-column #sony-viewer img,
+        .viewer-panel.two-column #goa-viewer img,
+        .viewer-panel.two-column #bacc-viewer img {{
+            max-height: 420px;
         }}
         
         .viewer-placeholder {{
@@ -578,43 +609,45 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             <div class="resize-handle" id="resize-handle"></div>
             
             <div class="viewer-panel" id="viewer-panel">
-                <div class="viewer-section">
-                    <h3>
-                        <span class="section-title">📈 MISS/MISS2 Spectral Plot</span>
-                        <span class="viewer-filename" id="miss-filename"></span>
-                    </h3>
-                    <div class="viewer-content" id="miss-viewer">
-                        <div class="viewer-placeholder">Click on a MISS file to view its spectral plot</div>
+                <div class="viewers-grid">
+                    <div class="viewer-section">
+                        <h3>
+                            <span class="section-title">📈 MISS/MISS2 Spectral Plot</span>
+                            <span class="viewer-filename" id="miss-filename"></span>
+                        </h3>
+                        <div class="viewer-content" id="miss-viewer">
+                            <div class="viewer-placeholder">Click on a MISS file to view its spectral plot</div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="viewer-section">
-                    <h3>
-                        <span class="section-title">📷 SONY Image</span>
-                        <span class="viewer-filename" id="sony-filename"></span>
-                    </h3>
-                    <div class="viewer-content" id="sony-viewer">
-                        <div class="viewer-placeholder">Click on a SONY file to view the image</div>
+                    
+                    <div class="viewer-section">
+                        <h3>
+                            <span class="section-title">📷 SONY Image</span>
+                            <span class="viewer-filename" id="sony-filename"></span>
+                        </h3>
+                        <div class="viewer-content" id="sony-viewer">
+                            <div class="viewer-placeholder">Click on a SONY file to view the image</div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="viewer-section" id="goa-viewer-section">
-                    <h3>
-                        <span class="section-title">🌌 AllskyGOA Image</span>
-                        <span class="viewer-filename" id="goa-filename"></span>
-                    </h3>
-                    <div class="viewer-content" id="goa-viewer">
-                        <div class="viewer-placeholder">Click on a GOA file to view the image</div>
+                    
+                    <div class="viewer-section" id="goa-viewer-section">
+                        <h3>
+                            <span class="section-title">🌌 AllskyGOA Image</span>
+                            <span class="viewer-filename" id="goa-filename"></span>
+                        </h3>
+                        <div class="viewer-content" id="goa-viewer">
+                            <div class="viewer-placeholder">Click on a GOA file to view the image</div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="viewer-section" id="bacc-viewer-section">
-                    <h3>
-                        <span class="section-title">📷 BACC Image</span>
-                        <span class="viewer-filename" id="bacc-filename"></span>
-                    </h3>
-                    <div class="viewer-content" id="bacc-viewer">
-                        <div class="viewer-placeholder">Click on a BACC file to view the image</div>
+                    
+                    <div class="viewer-section" id="bacc-viewer-section">
+                        <h3>
+                            <span class="section-title">📷 BACC Image</span>
+                            <span class="viewer-filename" id="bacc-filename"></span>
+                        </h3>
+                        <div class="viewer-content" id="bacc-viewer">
+                            <div class="viewer-placeholder">Click on a BACC file to view the image</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -646,6 +679,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     dataframeTable.classList.remove('goa-visible');
                     goaViewerSection.classList.remove('visible');
                 }}
+                updateViewerLayout();
             }});
             
             // BACC checkbox functionality
@@ -659,6 +693,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     dataframeTable.classList.remove('bacc-visible');
                     baccViewerSection.classList.remove('visible');
                 }}
+                updateViewerLayout();
             }});
             
             // Comment checkbox functionality
@@ -682,6 +717,21 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             let selectedGoaLink = null;
             let selectedBaccLink = null;
             
+            // Function to update layout based on panel width and visible sources
+            function updateViewerLayout() {{
+                const panelWidth = viewerPanel.offsetWidth;
+                const visibleSourcesCount = 2 + (goaCheckbox.checked ? 1 : 0) + (baccCheckbox.checked ? 1 : 0);
+                
+                // Enable two-column layout if:
+                // 1. More than 2 sources are visible (GOA or BACC checked)
+                // 2. Panel width is at least 900px
+                if (visibleSourcesCount > 2 && panelWidth >= 900) {{
+                    viewerPanel.classList.add('two-column');
+                }} else {{
+                    viewerPanel.classList.remove('two-column');
+                }}
+            }}
+            
             // Resizable panel functionality
             const resizeHandle = document.getElementById('resize-handle');
             const viewerPanel = document.getElementById('viewer-panel');
@@ -702,6 +752,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                 // Constrain width between min and max
                 if (newWidth >= 600 && newWidth <= 1200) {{
                     viewerPanel.style.width = newWidth + 'px';
+                    updateViewerLayout();
                 }}
             }});
             
@@ -812,6 +863,12 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     displayFile(allLinks[currentLinkIndex]);
                 }}
             }});
+            
+            // Update layout on window resize
+            window.addEventListener('resize', updateViewerLayout);
+            
+            // Initial layout check
+            updateViewerLayout();
         }});
     </script>
 </body>
