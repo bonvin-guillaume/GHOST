@@ -95,7 +95,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
     display_df['Date'] = df['Date']
     display_df['Time filter used'] = df['time_filter_used']
     
-    # Add MISS, SONY, and GOA file link columns
+    # Add MISS, SONY, GOA, and BACC file link columns
     display_df['MISS Files'] = df.apply(
         lambda row: create_file_links(row['miss_folder_path'], row['miss_files_list'], 'MISS'), 
         axis=1
@@ -106,6 +106,10 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
     )
     display_df['GOA Files'] = df.apply(
         lambda row: create_file_links(row['goa_folder_path'], row['goa_files_list'], 'GOA'), 
+        axis=1
+    )
+    display_df['BACC Files'] = df.apply(
+        lambda row: create_file_links(row['bacc_folder_path'], row['bacc_files_list'], 'BACC'), 
         axis=1
     )
     
@@ -148,15 +152,27 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             display: table-cell;
         }}
         
-        /* Hide Comments column by default */
+        /* Hide BACC Files column by default */
         .dataframe thead th:nth-child(6),
         .dataframe tbody td:nth-child(6) {{
             display: none;
         }}
         
+        /* Show BACC Files column when visible class is added */
+        .dataframe.bacc-visible thead th:nth-child(6),
+        .dataframe.bacc-visible tbody td:nth-child(6) {{
+            display: table-cell;
+        }}
+        
+        /* Hide Comments column by default */
+        .dataframe thead th:nth-child(7),
+        .dataframe tbody td:nth-child(7) {{
+            display: none;
+        }}
+        
         /* Show Comments column when visible class is added */
-        .dataframe.comments-visible thead th:nth-child(6),
-        .dataframe.comments-visible tbody td:nth-child(6) {{
+        .dataframe.comments-visible thead th:nth-child(7),
+        .dataframe.comments-visible tbody td:nth-child(7) {{
             display: table-cell;
         }}
         
@@ -382,6 +398,20 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             min-height: 510px;
         }}
         
+        /* BACC viewer section - hidden by default */
+        #bacc-viewer-section {{
+            display: none;
+        }}
+        
+        #bacc-viewer-section.visible {{
+            display: block;
+        }}
+        
+        #bacc-viewer {{
+            height: 510px;
+            min-height: 510px;
+        }}
+        
         .viewer-content img {{
             max-width: 100%;
             height: auto;
@@ -389,9 +419,10 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         }}
         
-        /* Ensure GOA images match SONY image display size */
+        /* Ensure GOA and BACC images match SONY image display size */
         #sony-viewer img,
-        #goa-viewer img {{
+        #goa-viewer img,
+        #bacc-viewer img {{
             max-height: 480px;
             width: auto;
             max-width: 100%;
@@ -462,10 +493,11 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             color: #a78bfa;
         }}
         
-        /* MISS Files, SONY Files, and GOA Files columns */
+        /* MISS Files, SONY Files, GOA Files, and BACC Files columns */
         .dataframe td:nth-child(3),
         .dataframe td:nth-child(4),
-        .dataframe td:nth-child(5) {{
+        .dataframe td:nth-child(5),
+        .dataframe td:nth-child(6) {{
             min-width: 250px;
         }}
         
@@ -514,10 +546,10 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             <h3>📈 GHOST Events Table</h3>
             <p><strong>How to use:</strong></p>
             <ul>
-                <li>Click on any file in the MISS Files, SONY Files, or GOA Files columns to view it in the panel on the right</li>
+                <li>Click on any file in the MISS Files, SONY Files, GOA Files, or BACC Files columns to view it in the panel on the right</li>
                 <li>MISS/MISS2 files will display their spectral plots 📈</li>
-                <li>SONY and GOA files will display the images 📷</li>
-                <li>Use the checkboxes below to toggle the GOA Files and Comments columns</li>
+                <li>SONY, GOA, and BACC files will display the images 📷</li>
+                <li>Use the checkboxes below to toggle the GOA Files, BACC Files, and Comments columns</li>
             </ul>
             <p><em>Note: MISS plots are pre-generated and saved in the MISS_plots folder.</em></p>
         </div>
@@ -528,6 +560,10 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     <label class="checkbox-label">
                         <input type="checkbox" id="goa-checkbox">
                         <span>Show AllskyGOA Files</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="bacc-checkbox">
+                        <span>Show BACC Files</span>
                     </label>
                     <label class="checkbox-label">
                         <input type="checkbox" id="comment-checkbox">
@@ -571,6 +607,16 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                         <div class="viewer-placeholder">Click on a GOA file to view the image</div>
                     </div>
                 </div>
+                
+                <div class="viewer-section" id="bacc-viewer-section">
+                    <h3>
+                        <span class="section-title">📷 BACC Image</span>
+                        <span class="viewer-filename" id="bacc-filename"></span>
+                    </h3>
+                    <div class="viewer-content" id="bacc-viewer">
+                        <div class="viewer-placeholder">Click on a BACC file to view the image</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -580,10 +626,13 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             const missViewer = document.getElementById('miss-viewer');
             const sonyViewer = document.getElementById('sony-viewer');
             const goaViewer = document.getElementById('goa-viewer');
+            const baccViewer = document.getElementById('bacc-viewer');
             const missFilename = document.getElementById('miss-filename');
             const sonyFilename = document.getElementById('sony-filename');
             const goaFilename = document.getElementById('goa-filename');
+            const baccFilename = document.getElementById('bacc-filename');
             const goaViewerSection = document.getElementById('goa-viewer-section');
+            const baccViewerSection = document.getElementById('bacc-viewer-section');
             
             // GOA checkbox functionality
             const goaCheckbox = document.getElementById('goa-checkbox');
@@ -596,6 +645,19 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                 }} else {{
                     dataframeTable.classList.remove('goa-visible');
                     goaViewerSection.classList.remove('visible');
+                }}
+            }});
+            
+            // BACC checkbox functionality
+            const baccCheckbox = document.getElementById('bacc-checkbox');
+            
+            baccCheckbox.addEventListener('change', function() {{
+                if (this.checked) {{
+                    dataframeTable.classList.add('bacc-visible');
+                    baccViewerSection.classList.add('visible');
+                }} else {{
+                    dataframeTable.classList.remove('bacc-visible');
+                    baccViewerSection.classList.remove('visible');
                 }}
             }});
             
@@ -618,6 +680,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             let selectedMissLink = null;
             let selectedSonyLink = null;
             let selectedGoaLink = null;
+            let selectedBaccLink = null;
             
             // Resizable panel functionality
             const resizeHandle = document.getElementById('resize-handle');
@@ -690,6 +753,20 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     // Display filename and image in GOA viewer
                     goaFilename.textContent = '- ' + filename;
                     goaViewer.innerHTML = '<img src="' + url + '" alt="' + filename + '">';
+                }} else if (filename.startsWith('BACC_LYR_')) {{
+                    // Remove selected class from previously selected BACC link
+                    if (selectedBaccLink) {{
+                        selectedBaccLink.classList.remove('selected');
+                    }}
+                    
+                    // Add selected class to new BACC link
+                    link.classList.add('selected');
+                    selectedBaccLink = link;
+                    
+                    // BACC file (format: BACC_LYR_DDMMYYYY_HHMMSS.png)
+                    // Display filename and image in BACC viewer
+                    baccFilename.textContent = '- ' + filename;
+                    baccViewer.innerHTML = '<img src="' + url + '" alt="' + filename + '">';
                 }} else {{
                     // Remove selected class from previously selected SONY link
                     if (selectedSonyLink) {{
