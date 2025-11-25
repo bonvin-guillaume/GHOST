@@ -20,7 +20,7 @@ MISS1_BASE_DIR = r'\\birkeland.unis.no\KHO\MISS-1'
 MISS2_BASE_DIR = r'\\birkeland.unis.no\KHO\MISS-2'
 SONY_BASE_DIR = r'\\birkeland.unis.no\KHO\Sony\Quicklooks'
 GOA_BASE_DIR = r'C:\Users\guillaumeb\Documents\AurorasNyAlesund_AllskyGOA'
-BACC_BASE_DIR = r'C:\Users\guillaumeb\Documents\BACC_frames'
+BACC_BASE_DIR = r'C:\Users\guillaumeb\Documents\GHOST\BACC_frames'
 
 
 def parse_time_string(time_str):
