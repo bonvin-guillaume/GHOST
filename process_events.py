@@ -1,6 +1,6 @@
 """
 This script processes GHOST events from GHOSTs_events.csv and finds corresponding
-MISS and SONY files for each event, saving the results to ghost_df.csv.
+MISS, SONY, GOA, and BACC files for each event, saving the results to ghost_df.csv.
 
 TODO:
 - Add filtering logic when an event is close to midnight. At the moment, it will only find files for the day of the event.
@@ -20,6 +20,7 @@ MISS1_BASE_DIR = r'\\birkeland.unis.no\KHO\MISS-1'
 MISS2_BASE_DIR = r'\\birkeland.unis.no\KHO\MISS-2'
 SONY_BASE_DIR = r'\\birkeland.unis.no\KHO\Sony\Quicklooks'
 GOA_BASE_DIR = r'C:\Users\guillaumeb\Documents\AurorasNyAlesund_AllskyGOA'
+BACC_BASE_DIR = r'C:\Users\guillaumeb\Documents\BACC_frames'
 
 
 def parse_time_string(time_str):
@@ -46,12 +47,13 @@ def parse_time_string(time_str):
 
 
 def extract_time_from_filename(filename):
-    """Extract time from MISS, SONY, or GOA filename
+    """Extract time from MISS, SONY, GOA, or BACC filename
     Supports formats:
     - MISS: MISS-YYYYMMDD-HHMMSS (e.g., MISS-20211126-002500.pgm)
     - MISS2: MISS2-YYYYMMDD-HHMMSS (e.g., MISS2-20241231-001215)
     - SONY: LYR-Sony-YYYYMMDD_HHMMSS (e.g., LYR-Sony-20160204_000018)
     - GOA: C004_YYYYMMDD_HHMM.jpg (e.g., C004_20250101_0706.jpg)
+    - BACC: BACC_LYR_DDMMYYYY_HHMMSS (e.g., BACC_LYR_08122016_235121)
     """
     # Try MISS/MISS2 format: dash separator before time
     # Example: MISS-20211126-002500 or MISS2-20241231-001215
@@ -72,6 +74,20 @@ def extract_time_from_filename(filename):
     pattern_sony = r'-\d{8}_(\d{2})(\d{2})(\d{2})'
     
     match = re.search(pattern_sony, filename)
+    if match:
+        h, m, s = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        # Validate that it's a reasonable time
+        if 0 <= h < 24 and 0 <= m < 60 and 0 <= s < 60:
+            try:
+                return datetime.strptime(f"{h:02d}:{m:02d}:{s:02d}", '%H:%M:%S').time()
+            except ValueError:
+                pass
+    
+    # Try BACC format: BACC_LYR_DDMMYYYY_HHMMSS
+    # Format: BACC_LYR_08122016_235121
+    pattern_bacc = r'BACC_LYR_\d{8}_(\d{2})(\d{2})(\d{2})'
+    
+    match = re.search(pattern_bacc, filename)
     if match:
         h, m, s = int(match.group(1)), int(match.group(2)), int(match.group(3))
         # Validate that it's a reasonable time
@@ -131,7 +147,7 @@ def time_in_range(file_time, start_time, end_time, buffer_minutes):
 
 def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv', buffer_minutes=1):
     """
-    Process GHOST events CSV file and find corresponding MISS, SONY, and GOA files.
+    Process GHOST events CSV file and find corresponding MISS, SONY, GOA, and BACC files.
     
     Args:
         input_csv: Path to input CSV file with GHOST events
@@ -154,18 +170,22 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
     df['MISS_folder_exists'] = False
     df['SONY_folder_exists'] = False
     df['GOA_folder_exists'] = False
+    df['BACC_folder_exists'] = False
     df['files_found'] = 0
     df['miss_folder_path'] = ''
     df['sony_folder_path'] = ''
     df['goa_folder_path'] = ''
+    df['bacc_folder_path'] = ''
     df['miss_files_found'] = 0
     df['sony_files_found'] = 0
     df['goa_files_found'] = 0
+    df['bacc_files_found'] = 0
     df['sample_files'] = ''
     df['time_filter_used'] = ''
     df['miss_files_list'] = [[] for _ in range(len(df))]
     df['sony_files_list'] = [[] for _ in range(len(df))]
     df['goa_files_list'] = [[] for _ in range(len(df))]
+    df['bacc_files_list'] = [[] for _ in range(len(df))]
     
     # Iterate through each row in the DataFrame
     for idx, row in df.iterrows():
@@ -189,26 +209,31 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
             else:
                 miss_base_dir = MISS1_BASE_DIR
             
-            # Create list of possible folder paths to check (MISS, Sony, and GOA)
+            # Create list of possible folder paths to check (MISS, Sony, GOA, and BACC)
             miss_folder_path = os.path.join(miss_base_dir, year, month, day)
             sony_folder_path = os.path.join(SONY_BASE_DIR, year, month, day)
             # GOA uses DD-MM-YYYY format for folder names
             goa_folder_path = os.path.join(GOA_BASE_DIR, f"{day}-{month}-{year}")
+            # BACC uses YYYY-MM-DD format for folder names
+            bacc_folder_path = os.path.join(BACC_BASE_DIR, f"{year}-{month}-{day}")
             
             # Store the paths separately
             df.at[idx, 'miss_folder_path'] = miss_folder_path
             df.at[idx, 'sony_folder_path'] = sony_folder_path
             df.at[idx, 'goa_folder_path'] = goa_folder_path
+            df.at[idx, 'bacc_folder_path'] = bacc_folder_path
             
             # Check which folders exist
             miss_exists = os.path.exists(miss_folder_path)
             sony_exists = os.path.exists(sony_folder_path)
             goa_exists = os.path.exists(goa_folder_path)
+            bacc_exists = os.path.exists(bacc_folder_path)
             
             # Store folder existence separately
             df.at[idx, 'MISS_folder_exists'] = miss_exists
             df.at[idx, 'SONY_folder_exists'] = sony_exists
             df.at[idx, 'GOA_folder_exists'] = goa_exists
+            df.at[idx, 'BACC_folder_exists'] = bacc_exists
             
             existing_paths = []
             if miss_exists:
@@ -217,6 +242,8 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
                 existing_paths.append(('sony', sony_folder_path))
             if goa_exists:
                 existing_paths.append(('goa', goa_folder_path))
+            if bacc_exists:
+                existing_paths.append(('bacc', bacc_folder_path))
             
             # Parse time information
             spectrum_time = parse_time_string(row.get('spectrum time', ''))
@@ -249,10 +276,11 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
             
             # Check if any folders exist and process files from all existing folders
             if existing_paths:
-                # Collect files separately from MISS, SONY, and GOA directories
+                # Collect files separately from MISS, SONY, GOA, and BACC directories
                 miss_files_all = []
                 sony_files_all = []
                 goa_files_all = []
+                bacc_files_all = []
                 
                 for source_type, folder_path in existing_paths:
                     try:
@@ -267,6 +295,11 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
                             files_in_folder = [f for f in os.listdir(folder_path) 
                                              if f.endswith('.jpg') and os.path.isfile(os.path.join(folder_path, f))]
                             goa_files_all.extend(files_in_folder)
+                        elif source_type == 'bacc':
+                            # Get all BACC files in folder (format: BACC_LYR_DDMMYYYY_HHMMSS_NNNN)
+                            files_in_folder = [f for f in os.listdir(folder_path) 
+                                             if f.startswith('BACC_LYR_') and os.path.isfile(os.path.join(folder_path, f))]
+                            bacc_files_all.extend(files_in_folder)
                     except Exception as e:
                         print(f"Row {idx} ({date_str}): Error reading {folder_path}: {e}")
                 
@@ -291,24 +324,34 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
                     if time_in_range(file_time, filter_start, filter_end, buffer_minutes):
                         goa_files_filtered.append(f)
                 
+                # Filter BACC files by time
+                bacc_files_filtered = []
+                for f in bacc_files_all:
+                    file_time = extract_time_from_filename(f)
+                    if time_in_range(file_time, filter_start, filter_end, buffer_minutes):
+                        bacc_files_filtered.append(f)
+                
                 # Use filtered files if time filter was applied, otherwise use all
                 miss_files = miss_files_filtered if miss_files_filtered or (filter_start or filter_end) else miss_files_all
                 sony_files = sony_files_filtered if sony_files_filtered or (filter_start or filter_end) else sony_files_all
                 goa_files = goa_files_filtered if goa_files_filtered or (filter_start or filter_end) else goa_files_all
+                bacc_files = bacc_files_filtered if bacc_files_filtered or (filter_start or filter_end) else bacc_files_all
                 
                 # Store counts separately
                 df.at[idx, 'miss_files_found'] = len(miss_files)
                 df.at[idx, 'sony_files_found'] = len(sony_files)
                 df.at[idx, 'goa_files_found'] = len(goa_files)
-                df.at[idx, 'files_found'] = len(miss_files) + len(sony_files) + len(goa_files)
+                df.at[idx, 'bacc_files_found'] = len(bacc_files)
+                df.at[idx, 'files_found'] = len(miss_files) + len(sony_files) + len(goa_files) + len(bacc_files)
                 
                 # Store the actual filtered file lists
                 df.at[idx, 'miss_files_list'] = sorted(miss_files)
                 df.at[idx, 'sony_files_list'] = sorted(sony_files)
                 df.at[idx, 'goa_files_list'] = sorted(goa_files)
+                df.at[idx, 'bacc_files_list'] = sorted(bacc_files)
                 
                 # Store sample files (combined)
-                all_files = miss_files + sony_files + goa_files
+                all_files = miss_files + sony_files + goa_files + bacc_files
                 if len(all_files) > 0:
                     sample = ', '.join(all_files[:3])
                     if len(all_files) > 3:
@@ -323,6 +366,8 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
                     summary_parts.append(f"SONY: {len(sony_files)}/{len(sony_files_all)}")
                 if len(goa_files_all) > 0:
                     summary_parts.append(f"GOA: {len(goa_files)}/{len(goa_files_all)}")
+                if len(bacc_files_all) > 0:
+                    summary_parts.append(f"BACC: {len(bacc_files)}/{len(bacc_files_all)}")
                 
                 summary_str = ', '.join(summary_parts) if summary_parts else "no files"
                 print(f"Row {idx} ({date_str}): {summary_str} files match time filter [{time_filter}]")
@@ -341,9 +386,11 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
     print(f"MISS folders found: {df['MISS_folder_exists'].sum()}")
     print(f"SONY folders found: {df['SONY_folder_exists'].sum()}")
     print(f"GOA folders found: {df['GOA_folder_exists'].sum()}")
+    print(f"BACC folders found: {df['BACC_folder_exists'].sum()}")
     print(f"Total MISS files found: {df['miss_files_found'].sum()}")
     print(f"Total SONY files found: {df['sony_files_found'].sum()}")
     print(f"Total GOA files found: {df['goa_files_found'].sum()}")
+    print(f"Total BACC files found: {df['bacc_files_found'].sum()}")
     print(f"{'='*80}")
     print(f"\nDataFrame saved to {output_csv}")
     print(f"Shape: {df.shape}")
