@@ -385,8 +385,8 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #miss-viewer {{
-            height: 350px;
-            min-height: 350px;
+            height: 310px;
+            min-height: 310px;
         }}
         
         #miss-viewer img {{
@@ -397,8 +397,8 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #sony-viewer {{
-            height: 510px;
-            min-height: 510px;
+            height: 410px;
+            min-height: 410px;
         }}
         
         /* GOA viewer section - hidden by default */
@@ -411,8 +411,8 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #goa-viewer {{
-            height: 510px;
-            min-height: 510px;
+            height: 410px;
+            min-height: 410px;
         }}
         
         /* BACC viewer section - hidden by default */
@@ -425,8 +425,8 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #bacc-viewer {{
-            height: 510px;
-            min-height: 510px;
+            height: 410px;
+            min-height: 410px;
         }}
         
         .viewer-content img {{
@@ -440,7 +440,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         #sony-viewer img,
         #goa-viewer img,
         #bacc-viewer img {{
-            max-height: 480px;
+            max-height: 400px;
             width: auto;
             max-width: 100%;
         }}
