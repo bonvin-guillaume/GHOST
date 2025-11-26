@@ -145,7 +145,7 @@ def time_in_range(file_time, start_time, end_time, buffer_minutes):
     return True
 
 
-def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv', buffer_minutes=1):
+def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv', buffer_minutes=45):
     """
     Process GHOST events CSV file and find corresponding MISS, SONY, GOA, and BACC files.
     
@@ -251,26 +251,35 @@ def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv
             stop_time = parse_time_string(row.get('Stop time', ''))
             
             # Determine which time filter to use
-            if spectrum_time:
-                filter_start = spectrum_time
-                filter_end = spectrum_time
-                time_filter = f"spectrum time: {spectrum_time} (±{buffer_minutes} min)"
-            elif start_time and stop_time:
+            if start_time and stop_time:
+                # Case 1: Both start and stop time provided
                 filter_start = start_time
                 filter_end = stop_time
                 time_filter = f"range: {start_time} - {stop_time}"
+            elif spectrum_time:
+                # Case 2: Only spectrum time - use ±buffer_minutes window
+                filter_start = spectrum_time
+                filter_end = spectrum_time
+                time_filter = f"spectrum time: {spectrum_time} (±{buffer_minutes} min)"
             elif start_time:
+                # Case 3: Only start time - window is start_time to start_time + 3×buffer_minutes
+                start_dt = datetime.combine(datetime.today(), start_time)
+                end_dt = start_dt + timedelta(minutes=3 * buffer_minutes)
                 filter_start = start_time
-                filter_end = None
-                time_filter = f"from: {start_time}"
+                filter_end = end_dt.time()
+                time_filter = f"from: {start_time} to {filter_end} (+{3*buffer_minutes} min)"
             elif stop_time:
-                filter_start = None
+                # Case 4: Only stop time - window is stop_time - 3×buffer_minutes to stop_time
+                end_dt = datetime.combine(datetime.today(), stop_time)
+                start_dt = end_dt - timedelta(minutes=3 * buffer_minutes)
+                filter_start = start_dt.time()
                 filter_end = stop_time
-                time_filter = f"until: {stop_time}"
+                time_filter = f"from: {filter_start} (-{3*buffer_minutes} min) to {stop_time}"
             else:
+                # Case 5: No time info - use whole day
                 filter_start = None
                 filter_end = None
-                time_filter = "all files (no time info)"
+                time_filter = "whole day (no time info)"
             
             df.at[idx, 'time_filter_used'] = time_filter
             
