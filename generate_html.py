@@ -94,6 +94,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
     display_df = pd.DataFrame()
     display_df['Date'] = df['Date']
     display_df['Time filter used'] = df['time_filter_used']
+    display_df['Suspected GHOST'] = df['spectrum time']
     
     # Add MISS, SONY, GOA, and BACC file link columns
     display_df['MISS Files'] = df.apply(
@@ -140,39 +141,51 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             min-height: 100vh;
         }}
         
-        /* Hide GOA Files column by default */
-        .dataframe thead th:nth-child(5),
-        .dataframe tbody td:nth-child(5) {{
+        /* Hide Suspected GHOST column by default */
+        .dataframe thead th:nth-child(3),
+        .dataframe tbody td:nth-child(3) {{
             display: none;
         }}
         
-        /* Show GOA Files column when visible class is added */
-        .dataframe.goa-visible thead th:nth-child(5),
-        .dataframe.goa-visible tbody td:nth-child(5) {{
+        /* Show Suspected GHOST column when visible class is added */
+        .dataframe.ghost-visible thead th:nth-child(3),
+        .dataframe.ghost-visible tbody td:nth-child(3) {{
             display: table-cell;
         }}
         
-        /* Hide BACC Files column by default */
+        /* Hide GOA Files column by default */
         .dataframe thead th:nth-child(6),
         .dataframe tbody td:nth-child(6) {{
             display: none;
         }}
         
-        /* Show BACC Files column when visible class is added */
-        .dataframe.bacc-visible thead th:nth-child(6),
-        .dataframe.bacc-visible tbody td:nth-child(6) {{
+        /* Show GOA Files column when visible class is added */
+        .dataframe.goa-visible thead th:nth-child(6),
+        .dataframe.goa-visible tbody td:nth-child(6) {{
             display: table-cell;
         }}
         
-        /* Hide Comments column by default */
+        /* Hide BACC Files column by default */
         .dataframe thead th:nth-child(7),
         .dataframe tbody td:nth-child(7) {{
             display: none;
         }}
         
+        /* Show BACC Files column when visible class is added */
+        .dataframe.bacc-visible thead th:nth-child(7),
+        .dataframe.bacc-visible tbody td:nth-child(7) {{
+            display: table-cell;
+        }}
+        
+        /* Hide Comments column by default */
+        .dataframe thead th:nth-child(8),
+        .dataframe tbody td:nth-child(8) {{
+            display: none;
+        }}
+        
         /* Show Comments column when visible class is added */
-        .dataframe.comments-visible thead th:nth-child(7),
-        .dataframe.comments-visible tbody td:nth-child(7) {{
+        .dataframe.comments-visible thead th:nth-child(8),
+        .dataframe.comments-visible tbody td:nth-child(8) {{
             display: table-cell;
         }}
         
@@ -525,10 +538,10 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         /* MISS Files, SONY Files, GOA Files, and BACC Files columns */
-        .dataframe td:nth-child(3),
         .dataframe td:nth-child(4),
         .dataframe td:nth-child(5),
-        .dataframe td:nth-child(6) {{
+        .dataframe td:nth-child(6),
+        .dataframe td:nth-child(7) {{
             min-width: 250px;
         }}
         
@@ -580,7 +593,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                 <li>Click on any file in the MISS Files, SONY Files, GOA Files, or BACC Files columns to view it in the panel on the right</li>
                 <li>MISS/MISS2 files will display their spectral plots 📈</li>
                 <li>SONY, GOA, and BACC files will display the images 📷</li>
-                <li>Use the checkboxes below to toggle the GOA Files, BACC Files, and Comments columns</li>
+                <li>Use the checkboxes below to toggle the Suspected GHOST, GOA Files, BACC Files, and Comments columns</li>
             </ul>
             <p><em>Note: MISS plots are pre-generated and saved in the MISS_plots folder.</em></p>
         </div>
@@ -588,6 +601,10 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         <div class="main-layout">
             <div class="table-container">
                 <div class="column-controls">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="ghost-checkbox">
+                        <span>Show suspected GHOST</span>
+                    </label>
                     <label class="checkbox-label">
                         <input type="checkbox" id="goa-checkbox">
                         <span>Show AllskyGOA Files</span>
@@ -667,9 +684,22 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             const goaViewerSection = document.getElementById('goa-viewer-section');
             const baccViewerSection = document.getElementById('bacc-viewer-section');
             
+            // Get dataframe table reference
+            const dataframeTable = document.querySelector('.dataframe');
+            
+            // Suspected GHOST checkbox functionality
+            const ghostCheckbox = document.getElementById('ghost-checkbox');
+            
+            ghostCheckbox.addEventListener('change', function() {{
+                if (this.checked) {{
+                    dataframeTable.classList.add('ghost-visible');
+                }} else {{
+                    dataframeTable.classList.remove('ghost-visible');
+                }}
+            }});
+            
             // GOA checkbox functionality
             const goaCheckbox = document.getElementById('goa-checkbox');
-            const dataframeTable = document.querySelector('.dataframe');
             
             goaCheckbox.addEventListener('change', function() {{
                 if (this.checked) {{
