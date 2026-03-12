@@ -168,7 +168,7 @@ def process_ghost_events(input_csv=None, output_csv=None, buffer_minutes=45):
     
     # Forward fill empty Date values (rows with same date as previous row)
     df['Date'] = df['Date'].replace('', np.nan)
-    df['Date'] = df['Date'].fillna(method='ffill')
+    df['Date'] = df['Date'].ffill()
     
     # Display basic information about the DataFrame
     print(f"DataFrame shape: {df.shape}")
