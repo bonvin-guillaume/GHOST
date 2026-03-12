@@ -15,6 +15,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 
+# Input/output files
+INPUT_CSV = 'march2026_updated_GHOSTs_events.csv'
+OUTPUT_CSV = 'ghost_df.csv'
+
 # Base directories for MISS-1/2 and SONY data
 MISS1_BASE_DIR = r'\\birkeland.unis.no\KHO\MISS-1'
 MISS2_BASE_DIR = r'\\birkeland.unis.no\KHO\MISS-2'
@@ -145,15 +149,19 @@ def time_in_range(file_time, start_time, end_time, buffer_minutes):
     return True
 
 
-def process_ghost_events(input_csv='GHOSTs_events.csv', output_csv='ghost_df.csv', buffer_minutes=45):
+def process_ghost_events(input_csv=None, output_csv=None, buffer_minutes=45):
     """
     Process GHOST events CSV file and find corresponding MISS, SONY, GOA, and BACC files.
     
     Args:
-        input_csv: Path to input CSV file with GHOST events
-        output_csv: Path to output CSV file with processed results
+        input_csv: Path to input CSV file with GHOST events (default: INPUT_CSV)
+        output_csv: Path to output CSV file with processed results (default: OUTPUT_CSV)
         buffer_minutes: Time buffer in minutes for spectrum time matching
     """
+    if input_csv is None:
+        input_csv = INPUT_CSV
+    if output_csv is None:
+        output_csv = OUTPUT_CSV
     # Read the GHOSTs events CSV file into a pandas DataFrame
     print(f"Reading {input_csv}...")
     df = pd.read_csv(input_csv, on_bad_lines='warn')
