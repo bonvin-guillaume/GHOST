@@ -20,9 +20,14 @@ INPUT_CSV = 'march2026_updated_GHOSTs_events.csv'
 OUTPUT_CSV = 'ghost_df.csv'
 
 # Base directories for MISS-1/2 and SONY data
-MISS1_BASE_DIR = r'\\birkeland.unis.no\KHO\MISS-1'
-MISS2_BASE_DIR = r'\\birkeland.unis.no\KHO\MISS-2'
-SONY_BASE_DIR = r'\\birkeland.unis.no\KHO\Sony\Quicklooks'
+# On macOS use /Volumes/KHO when the KHO share is mounted in Finder
+if os.name == 'posix':
+    _KHO_BASE = '/Volumes/KHO'
+else:
+    _KHO_BASE = r'\\birkeland.unis.no\KHO'
+MISS1_BASE_DIR = os.path.join(_KHO_BASE, 'MISS-1')
+MISS2_BASE_DIR = os.path.join(_KHO_BASE, 'MISS-2')
+SONY_BASE_DIR = os.path.join(_KHO_BASE, 'Sony', 'Quicklooks')
 GOA_BASE_DIR = r'C:\Users\guillaumeb\Documents\AurorasNyAlesund_AllskyGOA'
 BACC_BASE_DIR = r'C:\Users\guillaumeb\Documents\GHOST\BACC_frames'
 
