@@ -27,7 +27,8 @@ else:
     _KHO_BASE = r'\\birkeland.unis.no\KHO'
 MISS1_BASE_DIR = os.path.join(_KHO_BASE, 'MISS-1')
 MISS2_BASE_DIR = os.path.join(_KHO_BASE, 'MISS-2')
-SONY_BASE_DIR = os.path.join(_KHO_BASE, 'Sony', 'Quicklooks')
+SONY_QUICKLOOKS_BASE_DIR = os.path.join(_KHO_BASE, 'Sony', 'Quicklooks')
+SONY_FALLBACK_BASE_DIR = os.path.join(_KHO_BASE, 'Sony')
 BACC_BASE_DIR = r'C:\Users\guillaumeb\Documents\GHOST\BACC_frames'
 GOA_BASE_DIR = '/Users/guillaume/GHOST/GOA'
 
@@ -224,7 +225,12 @@ def process_ghost_events(input_csv=None, output_csv=None, buffer_minutes=45):
             
             # Create list of possible folder paths to check (MISS, Sony, GOA, and BACC)
             miss_folder_path = os.path.join(miss_base_dir, year, month, day)
-            sony_folder_path = os.path.join(SONY_BASE_DIR, year, month, day)
+            sony_quicklooks_path = os.path.join(SONY_QUICKLOOKS_BASE_DIR, year, month, day)
+            sony_fallback_path = os.path.join(SONY_FALLBACK_BASE_DIR, year, month, day)
+            if os.path.exists(sony_quicklooks_path):
+                sony_folder_path = sony_quicklooks_path
+            else:
+                sony_folder_path = sony_fallback_path
             # GOA uses DD-MM-YYYY format for folder names
             goa_folder_path = os.path.join(GOA_BASE_DIR, f"{day}-{month}-{year}")
             # BACC uses YYYY-MM-DD format for folder names
