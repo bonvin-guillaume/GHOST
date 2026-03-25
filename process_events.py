@@ -28,8 +28,8 @@ else:
 MISS1_BASE_DIR = os.path.join(_KHO_BASE, 'MISS-1')
 MISS2_BASE_DIR = os.path.join(_KHO_BASE, 'MISS-2')
 SONY_BASE_DIR = os.path.join(_KHO_BASE, 'Sony', 'Quicklooks')
-GOA_BASE_DIR = r'C:\Users\guillaumeb\Documents\AurorasNyAlesund_AllskyGOA'
 BACC_BASE_DIR = r'C:\Users\guillaumeb\Documents\GHOST\BACC_frames'
+GOA_BASE_DIR = '/Users/guillaume/GHOST/GOA'
 
 
 def parse_time_string(time_str):
