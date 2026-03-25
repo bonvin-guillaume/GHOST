@@ -410,7 +410,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #sony-viewer {{
-            height: 410px;
+            height: 100%;
             min-height: 410px;
         }}
         
@@ -449,27 +449,12 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         }}
         
-        /* Ensure GOA and BACC images match SONY image display size */
+        /* Ensure SONY, GOA, and BACC images scale with panel width */
         #sony-viewer img,
         #goa-viewer img,
         #bacc-viewer img {{
-            max-height: 400px;
-            width: auto;
-            max-width: 100%;
-        }}
-        
-        /* Adjust image heights in two-column mode for better fit */
-        .viewer-panel.two-column #sony-viewer,
-        .viewer-panel.two-column #goa-viewer,
-        .viewer-panel.two-column #bacc-viewer {{
-            height: 450px;
-            min-height: 450px;
-        }}
-        
-        .viewer-panel.two-column #sony-viewer img,
-        .viewer-panel.two-column #goa-viewer img,
-        .viewer-panel.two-column #bacc-viewer img {{
-            max-height: 420px;
+            height: auto;
+            max-height: None;
         }}
         
         .viewer-placeholder {{
