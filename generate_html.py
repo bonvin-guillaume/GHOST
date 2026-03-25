@@ -347,6 +347,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
             display: grid;
             grid-template-columns: 1fr;
             gap: 15px;
+            align-items: start;
         }}
         
         /* Two-column layout when panel is wide enough and multiple sources selected */
@@ -361,6 +362,9 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         
         .viewer-section {{
             margin-bottom: 0;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
         }}
         
         .viewer-section h3 {{
@@ -410,8 +414,10 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #sony-viewer {{
-            height: 100%;
+            height: 410px;
             min-height: 410px;
+            max-height: 65vh;
+            overflow: auto;
         }}
         
         /* GOA viewer section - hidden by default */
@@ -426,6 +432,8 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         #goa-viewer {{
             height: 410px;
             min-height: 410px;
+            max-height: 65vh;
+            overflow: auto;
         }}
         
         /* BACC viewer section - hidden by default */
@@ -440,6 +448,8 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         #bacc-viewer {{
             height: 410px;
             min-height: 410px;
+            max-height: 65vh;
+            overflow: auto;
         }}
         
         .viewer-content img {{
@@ -453,8 +463,11 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         #sony-viewer img,
         #goa-viewer img,
         #bacc-viewer img {{
-            height: auto;
-            max-height: None;
+            display: block;
+            width: auto;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }}
         
         .viewer-placeholder {{
