@@ -6,8 +6,46 @@ The HTML table includes clickable links to MISS, SONY, and GOA files with inline
 """
 
 import os
+import re
 import ast
 import pandas as pd
+from datetime import datetime, timezone
+
+
+def _parse_timestamp_ms(filename):
+    """Parse a Unix millisecond timestamp from a filename.
+
+    Handles:
+      - YYYYMMDD_HHMMSS  (SONY)
+      - YYYYMMDD-HHMMSS  (MISS, MISS2 — e.g. MISS-20200228-030500.pgm)
+      - YYYYMMDD_HHMM    (GOA)
+    Returns None if no pattern is found.
+    """
+    # Underscore separator: SONY (YYYYMMDD_HHMMSS)
+    m = re.search(r'(\d{8})_(\d{6})', filename)
+    if m:
+        try:
+            dt = datetime.strptime(m.group(1) + m.group(2), '%Y%m%d%H%M%S')
+            return int(dt.replace(tzinfo=timezone.utc).timestamp() * 1000)
+        except ValueError:
+            pass
+    # Dash separator: MISS / MISS2 (YYYYMMDD-HHMMSS)
+    m = re.search(r'(\d{8})-(\d{6})', filename)
+    if m:
+        try:
+            dt = datetime.strptime(m.group(1) + m.group(2), '%Y%m%d%H%M%S')
+            return int(dt.replace(tzinfo=timezone.utc).timestamp() * 1000)
+        except ValueError:
+            pass
+    # Underscore separator, 4-digit time: GOA (YYYYMMDD_HHMM)
+    m = re.search(r'(\d{8})_(\d{4})', filename)
+    if m:
+        try:
+            dt = datetime.strptime(m.group(1) + m.group(2), '%Y%m%d%H%M')
+            return int(dt.replace(tzinfo=timezone.utc).timestamp() * 1000)
+        except ValueError:
+            pass
+    return None
 
 
 def create_file_links(folder_path, file_list, label):
@@ -31,6 +69,10 @@ def create_file_links(folder_path, file_list, label):
         # Construct full file path
         file_path = folder_path + '\\' + filename
         
+        # Build a data-timestamp attribute when the filename carries a parseable time
+        ts = _parse_timestamp_ms(filename)
+        ts_attr = f' data-timestamp="{ts}"' if ts is not None else ''
+
         # For MISS .pgm files, create links to the generated plot images
         if label == 'MISS' and filename.endswith('.pgm') and filename.startswith('MISS-'):
             # Link to the generated plot PNG (MISS-1)
@@ -41,7 +83,7 @@ def create_file_links(folder_path, file_list, label):
             plot_url = 'file:///' + os.path.abspath(plot_path).replace('\\', '/')
             
             # Create link with filename that opens the plot
-            links.append(f'<a href="{plot_url}" target="_blank" title="View spectral plot">{filename} 📊</a>')
+            links.append(f'<a href="{plot_url}" target="_blank" title="View spectral plot"{ts_attr}>{filename} 📊</a>')
         # For MISS2 files, create links to the generated plot images
         elif label == 'MISS' and filename.startswith('MISS2-'):
             # Link to the generated plot PNG (MISS-2)
@@ -52,7 +94,7 @@ def create_file_links(folder_path, file_list, label):
             plot_url = 'file:///' + os.path.abspath(plot_path).replace('\\', '/')
             
             # Create link with filename that opens the plot
-            links.append(f'<a href="{plot_url}" target="_blank" title="View spectral plot">{filename} 📈</a>')
+            links.append(f'<a href="{plot_url}" target="_blank" title="View spectral plot"{ts_attr}>{filename} 📈</a>')
         else:
             # For SONY and other files, create direct file links
             # Convert to file:// URL
@@ -64,7 +106,7 @@ def create_file_links(folder_path, file_list, label):
                 file_url = 'file:///' + file_path.replace('\\', '/')
             
             # Create link with just the filename (shorter display)
-            links.append(f'<a href="{file_url}" target="_blank">{filename}</a>')
+            links.append(f'<a href="{file_url}" target="_blank"{ts_attr}>{filename}</a>')
     
     # Join all links with line breaks
     links_html = '<br>'.join(links)
@@ -792,14 +834,70 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                 }}
             }});
             
-            function displayFile(link) {{
+            // Find the link whose timestamp is the largest value <= floorTs.
+            // Implements the floor/truncation rule robustly even when file
+            // timestamps have minor offsets from the exact boundary.
+            function _findFloor(links, floorTs) {{
+                let best = null;
+                let bestTs = -Infinity;
+                links.forEach(function(l) {{
+                    const t = parseInt(l.getAttribute('data-timestamp'), 10);
+                    if (!isNaN(t) && t <= floorTs) {{
+                        if (t > bestTs) {{
+                            bestTs = t;
+                            best = l;
+                        }}
+                    }}
+                }});
+                return best;
+            }}
+
+            // When a SONY file is shown, update MISS (col 4, cells[3]) and GOA (col 6, cells[5])
+            // using a floor/truncation rule: show the frame whose timestamp equals
+            // floor(T_sony, 1 min) for MISS and floor(T_sony, 2 min) for GOA.
+            function syncViewersToSony(sonyLink) {{
+                const ts = parseInt(sonyLink.getAttribute('data-timestamp'), 10);
+                if (isNaN(ts)) return;
+
+                const row = sonyLink.closest('tr');
+                if (!row) return;
+
+                const cells = row.querySelectorAll('td');
+
+                // floor to 1-minute boundary for MISS (60 000 ms)
+                const missFloorTs = Math.floor(ts / 60000) * 60000;
+                // floor to 2-minute boundary for GOA (120 000 ms)
+                const goaFloorTs  = Math.floor(ts / 120000) * 120000;
+
+                // MISS Files are in the 4th column (0-based index 3)
+                if (cells[3]) {{
+                    const missLinks = Array.from(cells[3].querySelectorAll('a[data-timestamp]'));
+                    const floorMiss = _findFloor(missLinks, missFloorTs);
+                    if (floorMiss) displayFile(floorMiss, false);
+                }}
+
+                // GOA Files are in the 6th column (0-based index 5)
+                if (cells[5]) {{
+                    const goaLinks = Array.from(cells[5].querySelectorAll('a[data-timestamp]'));
+                    const floorGoa = _findFloor(goaLinks, goaFloorTs);
+                    if (floorGoa) displayFile(floorGoa, false);
+                }}
+            }}
+
+            // sync=true  → user-initiated action: update keyboard index, scroll link into view,
+            //              and trigger cross-viewer sync when a SONY file is shown.
+            // sync=false → programmatic sync call: skip those side-effects to avoid loops.
+            function displayFile(link, sync) {{
                 if (!link) return;
+                if (sync === undefined) sync = true;
                 
                 const url = link.getAttribute('href');
                 const filename = link.textContent.trim();
                 
-                // Update current index
-                currentLinkIndex = allLinks.indexOf(link);
+                // Only update keyboard navigation index for user-initiated actions
+                if (sync) {{
+                    currentLinkIndex = allLinks.indexOf(link);
+                }}
                 
                 // Check if it's a MISS/MISS2 plot (filename starts with MISS- or MISS2-)
                 if (filename.startsWith('MISS-') || filename.startsWith('MISS2-')) {{
@@ -859,10 +957,17 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     // Display filename and image in SONY viewer
                     sonyFilename.textContent = '- ' + filename;
                     sonyViewer.innerHTML = '<img src="' + url + '" alt="' + filename + '">';
+                    
+                    // Sync GOA and MISS viewers to the closest frame in time
+                    if (sync) {{
+                        syncViewersToSony(link);
+                    }}
                 }}
                 
-                // Scroll link into view
-                link.scrollIntoView({{ behavior: 'smooth', block: 'nearest' }});
+                // Scroll link into view only for user-initiated actions
+                if (sync) {{
+                    link.scrollIntoView({{ behavior: 'smooth', block: 'nearest' }});
+                }}
             }}
             
             // Click event listeners
