@@ -456,9 +456,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #sony-viewer {{
-            height: 410px;
             min-height: 410px;
-            max-height: 65vh;
             overflow: auto;
         }}
         
@@ -472,9 +470,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #goa-viewer {{
-            height: 410px;
             min-height: 410px;
-            max-height: 65vh;
             overflow: auto;
         }}
         
@@ -488,9 +484,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #bacc-viewer {{
-            height: 410px;
             min-height: 410px;
-            max-height: 65vh;
             overflow: auto;
         }}
         
@@ -506,10 +500,8 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         #goa-viewer img,
         #bacc-viewer img {{
             display: block;
-            width: auto;
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+            width: 100%;
+            height: auto;
         }}
         
         .viewer-placeholder {{
