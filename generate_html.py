@@ -704,6 +704,18 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
     </div>
     
     <script>
+        // Load an image into a viewer while freezing its height to avoid a
+        // collapse-then-expand flash during the transition.
+        function loadViewerImage(viewer, url, alt) {{
+            viewer.style.height = viewer.offsetHeight + 'px';
+            const img = new Image();
+            img.alt = alt;
+            img.onload = function() {{ viewer.style.height = ''; }};
+            img.src = url;
+            viewer.innerHTML = '';
+            viewer.appendChild(img);
+        }}
+
         document.addEventListener('DOMContentLoaded', function() {{
             const missViewer = document.getElementById('miss-viewer');
             const sonyViewer = document.getElementById('sony-viewer');
@@ -907,7 +919,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     
                     // Display filename and image in MISS viewer
                     missFilename.textContent = '- ' + cleanFilename;
-                    missViewer.innerHTML = '<img src="' + url + '" alt="' + cleanFilename + '">';
+                    loadViewerImage(missViewer, url, cleanFilename);
                 }} else if (filename.startsWith('C004_')) {{
                     // Remove selected class from previously selected GOA link
                     if (selectedGoaLink) {{
@@ -921,7 +933,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     // GOA file (format: C004_YYYYMMDD_HHMM.jpg)
                     // Display filename and image in GOA viewer
                     goaFilename.textContent = '- ' + filename;
-                    goaViewer.innerHTML = '<img src="' + url + '" alt="' + filename + '">';
+                    loadViewerImage(goaViewer, url, filename);
                 }} else if (filename.startsWith('BACC_LYR_')) {{
                     // Remove selected class from previously selected BACC link
                     if (selectedBaccLink) {{
@@ -935,7 +947,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     // BACC file (format: BACC_LYR_DDMMYYYY_HHMMSS.png)
                     // Display filename and image in BACC viewer
                     baccFilename.textContent = '- ' + filename;
-                    baccViewer.innerHTML = '<img src="' + url + '" alt="' + filename + '">';
+                    loadViewerImage(baccViewer, url, filename);
                 }} else {{
                     // Remove selected class from previously selected SONY link
                     if (selectedSonyLink) {{
@@ -948,7 +960,7 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     
                     // Display filename and image in SONY viewer
                     sonyFilename.textContent = '- ' + filename;
-                    sonyViewer.innerHTML = '<img src="' + url + '" alt="' + filename + '">';
+                    loadViewerImage(sonyViewer, url, filename);
                     
                     // Sync GOA and MISS viewers to the closest frame in time
                     if (sync) {{
