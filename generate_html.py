@@ -856,6 +856,24 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                 return best;
             }}
 
+            // Find the link whose timestamp is the smallest value >= ceilTs.
+            // Used when syncing from GOA: never show a file that happened before
+            // the selected GOA image.
+            function _findCeiling(links, ceilTs) {{
+                let best = null;
+                let bestTs = Infinity;
+                links.forEach(function(l) {{
+                    const t = parseInt(l.getAttribute('data-timestamp'), 10);
+                    if (!isNaN(t) && t >= ceilTs) {{
+                        if (t < bestTs) {{
+                            bestTs = t;
+                            best = l;
+                        }}
+                    }}
+                }});
+                return best;
+            }}
+
             // When a SONY file is shown, update MISS (col 4, cells[3]) and GOA (col 6, cells[5])
             // using a floor/truncation rule: show the frame whose timestamp equals
             // floor(T_sony, 1 min) for MISS and floor(T_sony, 2 min) for GOA.
@@ -885,6 +903,33 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     const goaLinks = Array.from(cells[5].querySelectorAll('a[data-timestamp]'));
                     const floorGoa = _findFloor(goaLinks, goaFloorTs);
                     if (floorGoa) displayFile(floorGoa, false);
+                }}
+            }}
+
+            // When a GOA image is shown, update MISS (col 4, cells[3]) and SONY (col 5, cells[4])
+            // using a ceiling rule: show the nearest frame whose timestamp is >= the GOA timestamp
+            // so that neither SONY nor MISS files that happened before the GOA image are shown.
+            function syncViewersToGoa(goaLink) {{
+                const ts = parseInt(goaLink.getAttribute('data-timestamp'), 10);
+                if (isNaN(ts)) return;
+
+                const row = goaLink.closest('tr');
+                if (!row) return;
+
+                const cells = row.querySelectorAll('td');
+
+                // MISS Files are in the 4th column (0-based index 3)
+                if (cells[3]) {{
+                    const missLinks = Array.from(cells[3].querySelectorAll('a[data-timestamp]'));
+                    const ceilMiss = _findCeiling(missLinks, ts);
+                    if (ceilMiss) displayFile(ceilMiss, false);
+                }}
+
+                // SONY Files are in the 5th column (0-based index 4)
+                if (cells[4]) {{
+                    const sonyLinks = Array.from(cells[4].querySelectorAll('a[data-timestamp]'));
+                    const ceilSony = _findCeiling(sonyLinks, ts);
+                    if (ceilSony) displayFile(ceilSony, false);
                 }}
             }}
 
@@ -934,6 +979,11 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                     // Display filename and image in GOA viewer
                     goaFilename.textContent = '- ' + filename;
                     loadViewerImage(goaViewer, url, filename);
+                    
+                    // Sync SONY and MISS viewers to the closest frame at or after this GOA image
+                    if (sync) {{
+                        syncViewersToGoa(link);
+                    }}
                 }} else if (filename.startsWith('BACC_LYR_')) {{
                     // Remove selected class from previously selected BACC link
                     if (selectedBaccLink) {{
