@@ -345,13 +345,6 @@ def process_ghost_events(input_csv=None, output_csv=None, buffer_minutes=45):
                     if time_in_range(file_time, filter_start, filter_end, buffer_minutes):
                         sony_files_filtered.append(f)
                 
-                # Filter GOA files by time
-                goa_files_filtered = []
-                for f in goa_files_all:
-                    file_time = extract_time_from_filename(f)
-                    if time_in_range(file_time, filter_start, filter_end, buffer_minutes):
-                        goa_files_filtered.append(f)
-                
                 # Filter BACC files by time
                 bacc_files_filtered = []
                 for f in bacc_files_all:
@@ -362,7 +355,7 @@ def process_ghost_events(input_csv=None, output_csv=None, buffer_minutes=45):
                 # Use filtered files if time filter was applied, otherwise use all
                 miss_files = miss_files_filtered if miss_files_filtered or (filter_start or filter_end) else miss_files_all
                 sony_files = sony_files_filtered if sony_files_filtered or (filter_start or filter_end) else sony_files_all
-                goa_files = goa_files_filtered if goa_files_filtered or (filter_start or filter_end) else goa_files_all
+                goa_files = goa_files_all  # no time filter for GOA
                 bacc_files = bacc_files_filtered if bacc_files_filtered or (filter_start or filter_end) else bacc_files_all
                 
                 # Store counts separately
