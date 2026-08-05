@@ -32,5 +32,4 @@ ENV/
 *.csv
 *.pkl
 ghost_events_table.html
-ghost_events_with_files.pkl
 
