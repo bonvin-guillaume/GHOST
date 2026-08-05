@@ -444,7 +444,6 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
         }}
         
         #miss-viewer {{
-            height: 310px;
             min-height: 310px;
         }}
         
@@ -1068,10 +1067,6 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
     
     print(f"\nHTML table saved to {output_html}")
     print(f"Open this file in a web browser to view the interactive table.")
-    
-    # Also save the display dataframe with all the data including file lists
-    display_df.to_pickle('ghost_events_with_files.pkl')
-    print(f"Display dataframe saved to ghost_events_with_files.pkl")
     
     return styled_html
 
