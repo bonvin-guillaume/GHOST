@@ -27,7 +27,8 @@ else:
     _KHO_BASE = r'\\birkeland.unis.no\KHO'
 MISS1_BASE_DIR = os.path.join(_KHO_BASE, 'MISS-1')
 MISS2_BASE_DIR = os.path.join(_KHO_BASE, 'MISS-2')
-SONY_QUICKLOOKS_BASE_DIR = os.path.join(_KHO_BASE, 'Sony', 'Quicklooks')
+SONY_QUICKLOOKS_BASE_DIR = '/Users/guillaume/Code/ElevationGridASC/quicklooks_with_grid'
+# SONY_QUICKLOOKS_BASE_DIR = os.path.join(_KHO_BASE, 'Sony', 'Quicklooks')
 SONY_FALLBACK_BASE_DIR = os.path.join(_KHO_BASE, 'Sony')
 BACC_BASE_DIR = r'C:\Users\guillaumeb\Documents\GHOST\BACC_frames'
 GOA_BASE_DIR = '/Users/guillaume/GHOST/GOA'
