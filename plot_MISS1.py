@@ -14,6 +14,7 @@ matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 from scipy.signal import medfilt2d
 
+row_offset = 70
 
 def readpgm(name):
     """Read ASCII PGM-file (P2 format)."""
@@ -60,7 +61,7 @@ def read_miss_spectral(filename):
     colIndex = np.arange(0, im.shape[1])
 
     for alpha in scanangle:
-        row = 70 + alpha
+        row = row_offset + alpha
         blueline = bluepoly(row)
         redline = redpoly(row)
         greenline = greenpoly(row)
@@ -77,9 +78,17 @@ def read_miss_spectral(filename):
 def save_spectral_plot(spectralimage, output_path, filename, selected_row=125):
     """Create and save plot of the spectral image."""
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.imshow(np.sqrt(spectralimage), aspect='auto', extent=[400, 700, 200, 0])
+    im = ax.imshow(np.sqrt(spectralimage), aspect='auto', extent=[400, 700, 200, 0]) # dynamic range compression, nonlinear intensity stretch
+    # im = ax.imshow(np.log10(spectralimage + 1), aspect='auto', extent=[400, 700, 200, 0]) # Log stretch: compresses the dynamic range even more and is often useful when intensities span several orders of magnitude
+    cbar = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.01)
+    cbar.set_label(r'$\sqrt{\mathrm{Counts}}$', fontsize=10)
+    tick_positions = np.linspace(200,0, num=7)
+    tick_labels = ["South", "-60", "-30", "Zenith", "30", "60", "North"]
+    ax.set_yticks(tick_positions)
+    ax.set_yticklabels(tick_labels)
+    ax.grid(axis='both', linestyle='--', linewidth=0.5, alpha=0.7)
     ax.set_xlabel('Wavelength [nm]')
-    ax.set_ylabel('Uncalibrated angle')
+    ax.set_ylabel('Scan angle from zenith [deg]') # Simple linear approximation
     title = f'{filename}'
     ax.set_title(title)
     plt.tight_layout()

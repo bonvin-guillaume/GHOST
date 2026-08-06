@@ -88,21 +88,21 @@ def miss2spectral(missFile):
 
 def save_spectral_plot(spectralImage, wavelengths, output_path, filename):
     """Create and save plot of the spectral image."""
-    fig, axMiss = plt.subplots(figsize=(10,6))
-    fig.suptitle(filename)
-
-    pos=axMiss.imshow(np.sqrt(spectralImage), aspect='auto',
+    fig, ax = plt.subplots(figsize=(10,6))
+    im=ax.imshow(np.sqrt(spectralImage), aspect='auto',
                 extent=[min(wavelengths),max(wavelengths),0, 200],
                 vmin=0)
-    axMiss.set_xlabel('Wavelength [nm]')
-    axMiss.set_ylabel('Uncalibrated zenith angle')
+    cbar = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.01)
+    cbar.set_label(r'$\sqrt{\mathrm{Counts}}$', fontsize=10)
     tick_positions = np.linspace(0,200, num=7)
     tick_labels = ["South", "-60", "-30", "Zenith", "30", "60", "North"]
-    axMiss.set_yticks(tick_positions)
-    axMiss.set_yticklabels(tick_labels)
-    axMiss.grid(False)
-    # fig.colorbar(pos, ax=axMiss, label="Counts")
-    
+    ax.set_yticks(tick_positions)
+    ax.set_yticklabels(tick_labels)
+    ax.grid(axis='both', linestyle='--', linewidth=0.5, alpha=0.7)
+    ax.set_xlabel('Wavelength [nm]')
+    ax.set_ylabel('Scan angle from zenith [deg]')
+    title = f'{filename}'
+    ax.set_title(title)
     plt.tight_layout()
     plt.savefig(output_path, dpi=100, bbox_inches='tight')
     plt.close(fig)
