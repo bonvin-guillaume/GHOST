@@ -245,34 +245,10 @@
             flex-direction: column;
         }
         
-        .viewer-section h3 {
-            color: #a78bfa;
-            margin-bottom: 15px;
-            font-size: 1.1em;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .viewer-section h3 .section-title {
-            flex-shrink: 0;
-        }
-        
-        .viewer-filename {
-            color: #fbbf24;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85em;
-            font-weight: normal;
-            word-break: break-all;
-            flex: 1;
-        }
-        
         .viewer-content {
             background: #1e1e2e;
             border-radius: 6px;
-            padding: 15px;
+            padding: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -280,7 +256,7 @@
         }
         
         #miss-viewer {
-            min-height: 310px;
+            min-height: 360px;
         }
         
         #miss-viewer img {
@@ -291,7 +267,7 @@
         }
         
         #sony-viewer {
-            min-height: 410px;
+            min-height: 460px;
             overflow: auto;
         }
         
@@ -305,7 +281,7 @@
         }
         
         #goa-viewer {
-            min-height: 410px;
+            min-height: 460px;
             overflow: auto;
         }
         
@@ -319,7 +295,7 @@
         }
         
         #bacc-viewer {
-            min-height: 410px;
+            min-height: 460px;
             overflow: auto;
         }
         
@@ -980,40 +956,24 @@
             <div class="viewer-panel" id="viewer-panel">
                 <div class="viewers-grid">
                     <div class="viewer-section">
-                        <h3>
-                            <span class="section-title">📈 MISS/MISS2 Spectral Plot</span>
-                            <span class="viewer-filename" id="miss-filename"></span>
-                        </h3>
                         <div class="viewer-content" id="miss-viewer">
                             <div class="viewer-placeholder">Click on a MISS file to view its spectral plot</div>
                         </div>
                     </div>
                     
                     <div class="viewer-section">
-                        <h3>
-                            <span class="section-title">📷 SONY Image</span>
-                            <span class="viewer-filename" id="sony-filename"></span>
-                        </h3>
                         <div class="viewer-content" id="sony-viewer">
                             <div class="viewer-placeholder">Click on a SONY file to view the image</div>
                         </div>
                     </div>
                     
                     <div class="viewer-section" id="goa-viewer-section">
-                        <h3>
-                            <span class="section-title">🌌 AllskyGOA Image</span>
-                            <span class="viewer-filename" id="goa-filename"></span>
-                        </h3>
                         <div class="viewer-content" id="goa-viewer">
                             <div class="viewer-placeholder">Click on a GOA file to view the image</div>
                         </div>
                     </div>
                     
                     <div class="viewer-section" id="bacc-viewer-section">
-                        <h3>
-                            <span class="section-title">📷 BACC Image</span>
-                            <span class="viewer-filename" id="bacc-filename"></span>
-                        </h3>
                         <div class="viewer-content" id="bacc-viewer">
                             <div class="viewer-placeholder">Click on a BACC file to view the image</div>
                         </div>
@@ -1041,10 +1001,6 @@
             const sonyViewer = document.getElementById('sony-viewer');
             const goaViewer = document.getElementById('goa-viewer');
             const baccViewer = document.getElementById('bacc-viewer');
-            const missFilename = document.getElementById('miss-filename');
-            const sonyFilename = document.getElementById('sony-filename');
-            const goaFilename = document.getElementById('goa-filename');
-            const baccFilename = document.getElementById('bacc-filename');
             const goaViewerSection = document.getElementById('goa-viewer-section');
             const baccViewerSection = document.getElementById('bacc-viewer-section');
             
@@ -1253,9 +1209,46 @@
                 }
             }
 
-            // sync=true  → user-initiated action: update keyboard index, scroll link into view,
-            //              and trigger cross-viewer sync when a SONY file is shown.
+            // Find the link whose timestamp is closest to targetTs (before or after).
+            function _findClosest(links, targetTs) {
+                let best = null;
+                let bestDelta = Infinity;
+                links.forEach(function(l) {
+                    const t = parseInt(l.getAttribute('data-timestamp'), 10);
+                    if (!isNaN(t)) {
+                        const delta = Math.abs(t - targetTs);
+                        if (delta < bestDelta) {
+                            bestDelta = delta;
+                            best = l;
+                        }
+                    }
+                });
+                return best;
+            }
+
+            // When a MISS plot is shown, update SONY (col 5, cells[4]) to the
+            // closest frame in time (before or after the MISS timestamp).
+            function syncViewersToMiss(missLink) {
+                const ts = parseInt(missLink.getAttribute('data-timestamp'), 10);
+                if (isNaN(ts)) return;
+
+                const row = missLink.closest('tr');
+                if (!row) return;
+
+                const cells = row.querySelectorAll('td');
+
+                // SONY Files are in the 5th column (0-based index 4)
+                if (cells[4]) {
+                    const sonyLinks = Array.from(cells[4].querySelectorAll('a[data-timestamp]'));
+                    const closestSony = _findClosest(sonyLinks, ts);
+                    if (closestSony) displayFile(closestSony, false);
+                }
+            }
+
+            // sync=true  → user-initiated action: update keyboard index and trigger
+            //              cross-viewer sync when a SONY/MISS/GOA file is shown.
             // sync=false → programmatic sync call: skip those side-effects to avoid loops.
+            //              Still highlights and scrolls the link into its file list.
             function displayFile(link, sync) {
                 if (!link) return;
                 if (sync === undefined) sync = true;
@@ -1281,10 +1274,12 @@
                     
                     // Clean filename (remove emojis if present)
                     const cleanFilename = filename.replace(' 📈', '').replace(' 📊', '').trim();
-                    
-                    // Display filename and image in MISS viewer
-                    missFilename.textContent = '- ' + cleanFilename;
                     loadViewerImage(missViewer, url, cleanFilename);
+                    
+                    // Sync SONY to the closest frame in time
+                    if (sync) {
+                        syncViewersToMiss(link);
+                    }
                 } else if (filename.startsWith('C004_')) {
                     // Remove selected class from previously selected GOA link
                     if (selectedGoaLink) {
@@ -1296,8 +1291,6 @@
                     selectedGoaLink = link;
                     
                     // GOA file (format: C004_YYYYMMDD_HHMM.jpg)
-                    // Display filename and image in GOA viewer
-                    goaFilename.textContent = '- ' + filename;
                     loadViewerImage(goaViewer, url, filename);
                     
                     // Sync SONY and MISS viewers to the closest frame at or after this GOA image
@@ -1315,8 +1308,6 @@
                     selectedBaccLink = link;
                     
                     // BACC file (format: BACC_LYR_DDMMYYYY_HHMMSS.png)
-                    // Display filename and image in BACC viewer
-                    baccFilename.textContent = '- ' + filename;
                     loadViewerImage(baccViewer, url, filename);
                 } else {
                     // Remove selected class from previously selected SONY link
@@ -1328,8 +1319,6 @@
                     link.classList.add('selected');
                     selectedSonyLink = link;
                     
-                    // Display filename and image in SONY viewer
-                    sonyFilename.textContent = '- ' + filename;
                     loadViewerImage(sonyViewer, url, filename);
                     
                     // Sync GOA and MISS viewers to the closest frame in time
@@ -1338,10 +1327,13 @@
                     }
                 }
                 
-                // Scroll link into view only for user-initiated actions
-                if (sync) {
-                    link.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
+                // Always scroll so the highlighted filename is visible in its list.
+                // Use instant scroll for synced links to avoid fighting the primary smooth scroll.
+                link.scrollIntoView({
+                    behavior: sync ? 'smooth' : 'auto',
+                    block: 'nearest',
+                    inline: 'nearest'
+                });
             }
             
             // Click event listeners
