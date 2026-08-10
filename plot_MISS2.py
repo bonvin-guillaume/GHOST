@@ -11,6 +11,8 @@ Mikko Syrjäsuo/UNIS, 2025-11-16
 from datetime import datetime
 from os.path import isfile, join, basename
 from glob import glob # It might be better to get an iterator?
+import json
+import os
 
 import pandas as pd
 import numpy as np
@@ -20,6 +22,44 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import transforms
 from scipy.signal import medfilt2d
 from PIL import Image
+
+PLOT_DPI = 100
+PLOT_PAD_INCHES = 0.1
+
+
+def _use_agg_backend():
+    """Force non-interactive backend for batch PNG export."""
+    import matplotlib
+    matplotlib.use('Agg', force=True)
+    global plt
+    import matplotlib.pyplot as _plt
+    plt = _plt
+
+
+def write_plot_sidecar(fig, ax, output_path, meta):
+    """Write JSON next to the PNG with axes bbox in saved-image pixels.
+
+    axes_bbox_px is [left, bottom, width, height] with bottom measured from
+    the bottom of the saved PNG (matplotlib convention).
+    """
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    tight = fig.get_tightbbox(renderer).padded(PLOT_PAD_INCHES)
+    ax_inches = ax.get_window_extent(renderer).transformed(
+        fig.dpi_scale_trans.inverted()
+    )
+    dpi = fig.dpi
+    left = (ax_inches.x0 - tight.x0) * dpi
+    bottom = (ax_inches.y0 - tight.y0) * dpi
+    width = ax_inches.width * dpi
+    height = ax_inches.height * dpi
+    meta = dict(meta)
+    meta['image_size_px'] = [tight.width * dpi, tight.height * dpi]
+    meta['axes_bbox_px'] = [left, bottom, width, height]
+    meta['dpi'] = dpi
+    sidecar_path = os.path.splitext(output_path)[0] + '.json'
+    with open(sidecar_path, 'w', encoding='utf-8') as f:
+        json.dump(meta, f, indent=2)
 
 def miss2spectral(missFile):
     """
@@ -88,6 +128,7 @@ def miss2spectral(missFile):
 
 def save_spectral_plot(spectralImage, wavelengths, output_path, filename):
     """Create and save plot of the spectral image."""
+    _use_agg_backend()
     fig, ax = plt.subplots(figsize=(10,6))
     im=ax.imshow(np.sqrt(spectralImage), aspect='auto',
                 extent=[min(wavelengths),max(wavelengths),0, 200],
@@ -100,11 +141,34 @@ def save_spectral_plot(spectralImage, wavelengths, output_path, filename):
     ax.set_yticklabels(tick_labels)
     ax.grid(axis='both', linestyle='--', linewidth=0.5, alpha=0.7)
     ax.set_xlabel('Wavelength [nm]')
-    ax.set_ylabel('Scan angle from zenith [deg]')
+    ax.set_ylabel('Angle from zenith [deg]')
     title = f'{filename}'
     ax.set_title(title)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=100, bbox_inches='tight')
+    fig.set_dpi(PLOT_DPI)
+    write_plot_sidecar(
+        fig,
+        ax,
+        output_path,
+        {
+            'instrument': 'MISS2',
+            'source_filename': filename,
+            'wavelength_min': float(min(wavelengths)),
+            'wavelength_max': float(max(wavelengths)),
+            'scan_min': 0,
+            'scan_max': 200,
+            'y_top_is_scan': 200,
+            'y_bottom_is_scan': 0,
+            'n_scan': int(spectralImage.shape[0]),
+            'n_wavelength': int(spectralImage.shape[1]),
+        },
+    )
+    plt.savefig(
+        output_path,
+        dpi=PLOT_DPI,
+        bbox_inches='tight',
+        pad_inches=PLOT_PAD_INCHES,
+    )
     plt.close(fig)
 
 

@@ -257,6 +257,7 @@
         
         #miss-viewer {
             min-height: 360px;
+            position: relative;
         }
         
         #miss-viewer img {
@@ -264,6 +265,111 @@
             width: auto;
             max-width: 100%;
             object-fit: contain;
+            cursor: crosshair;
+        }
+
+        .miss-viewer-wrap {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .miss-click-status {
+            font-size: 0.85rem;
+            color: #c4b5fd;
+            margin-bottom: 0.4rem;
+            min-height: 1.2em;
+        }
+
+        .miss-markers {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .miss-marker {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 0;
+            border-top: 2px dashed;
+            transform: translateY(-1px);
+        }
+
+        .miss-marker.signal {
+            border-color: #38bdf8;
+        }
+
+        .miss-marker.background {
+            border-color: #fb923c;
+        }
+
+        .miss-band {
+            position: absolute;
+            left: 0;
+            right: 0;
+            opacity: 0.28;
+            pointer-events: none;
+        }
+
+        .miss-band.signal {
+            background: #38bdf8;
+        }
+
+        .miss-band.background {
+            background: #fb923c;
+        }
+
+        .miss-band-label {
+            position: absolute;
+            left: 4px;
+            top: 2px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 0 4px;
+            border-radius: 3px;
+            color: #0f172a;
+        }
+
+        .miss-band.signal .miss-band-label {
+            background: rgba(56, 189, 248, 0.95);
+        }
+
+        .miss-band.background .miss-band-label {
+            background: rgba(251, 146, 60, 0.95);
+        }
+
+        .miss-drag-rect {
+            position: absolute;
+            border: 2px dashed #e2e8f0;
+            background: rgba(226, 232, 240, 0.15);
+            pointer-events: none;
+            display: none;
+        }
+
+        .miss-marker-label {
+            position: absolute;
+            left: 4px;
+            top: 2px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 0 4px;
+            border-radius: 3px;
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        .miss-marker.signal .miss-marker-label {
+            background: rgba(56, 189, 248, 0.9);
+        }
+
+        .miss-marker.background .miss-marker-label {
+            background: rgba(251, 146, 60, 0.9);
         }
         
         #sony-viewer {
@@ -435,6 +541,7 @@
             <ul>
                 <li>Click on any file in the MISS Files, SONY Files, GOA Files, or BACC Files columns to view it in the panel on the right</li>
                 <li>MISS/MISS2 files will display their spectral plots 📈</li>
+                <li>On a MISS plot: select signal then background — click = one scan angle, drag = average over a range (run <code>python miss_spectrum_server.py</code> first)</li>
                 <li>SONY, GOA, and BACC files will display the images 📷</li>
                 <li>Use the checkboxes below to toggle the Suspected GHOST, GOA Files, BACC Files, and Comments columns</li>
             </ul>
@@ -956,6 +1063,7 @@
             <div class="viewer-panel" id="viewer-panel">
                 <div class="viewers-grid">
                     <div class="viewer-section">
+                        <div class="miss-click-status" id="miss-click-status">Next: signal (click or drag a range) — start <code>miss_spectrum_server.py</code></div>
                         <div class="viewer-content" id="miss-viewer">
                             <div class="viewer-placeholder">Click on a MISS file to view its spectral plot</div>
                         </div>
@@ -986,11 +1094,15 @@
     <script>
         // Load an image into a viewer while freezing its height to avoid a
         // collapse-then-expand flash during the transition.
-        function loadViewerImage(viewer, url, alt) {
+        // optional onLoaded(img) is called after the image element is inserted.
+        function loadViewerImage(viewer, url, alt, onLoaded) {
             viewer.style.height = viewer.offsetHeight + 'px';
             const img = new Image();
             img.alt = alt;
-            img.onload = function() { viewer.style.height = ''; };
+            img.onload = function() {
+                viewer.style.height = '';
+                if (onLoaded) onLoaded(img);
+            };
             img.src = url;
             viewer.innerHTML = '';
             viewer.appendChild(img);
@@ -1272,7 +1384,10 @@
                     
                     // Clean filename (remove emojis if present)
                     const cleanFilename = filename.replace(' 📈', '').replace(' 📊', '').trim();
-                    loadViewerImage(missViewer, url, cleanFilename);
+                    loadViewerImage(missViewer, url, cleanFilename, function(img) {
+                        resetMissClickUi('Next: signal (click or drag a range)');
+                        prepareMissOverlay(img);
+                    });
                     
                     // Sync SONY to the closest frame in time
                     if (sync) {
@@ -1340,6 +1455,243 @@
                     e.preventDefault();
                     displayFile(this);
                 });
+            });
+
+            // --- MISS plot: signal then background (click = row, drag = mean range) ---
+            const MISS_CLICK_URL = 'http://127.0.0.1:8765/click';
+            const missClickStatus = document.getElementById('miss-click-status');
+            let missClickPhase = 'signal'; // 'signal' | 'background'
+            const DRAG_THRESHOLD_PX = 6;
+            let missDrag = null; // { img, startX, startY, startClientX, startClientY }
+
+            function resetMissClickUi(message) {
+                missClickPhase = 'signal';
+                if (missClickStatus) {
+                    missClickStatus.textContent = message || 'Next: signal (click or drag a range)';
+                }
+                const markers = document.getElementById('miss-markers');
+                if (markers) markers.innerHTML = '';
+                const dragRect = document.getElementById('miss-drag-rect');
+                if (dragRect) dragRect.style.display = 'none';
+            }
+
+            function prepareMissOverlay(img) {
+                if (!img || img.closest('.miss-viewer-wrap')) return;
+                const wrap = document.createElement('div');
+                wrap.className = 'miss-viewer-wrap';
+                const markers = document.createElement('div');
+                markers.id = 'miss-markers';
+                markers.className = 'miss-markers';
+                const dragRect = document.createElement('div');
+                dragRect.id = 'miss-drag-rect';
+                dragRect.className = 'miss-drag-rect';
+                img.parentNode.insertBefore(wrap, img);
+                wrap.appendChild(img);
+                wrap.appendChild(markers);
+                wrap.appendChild(dragRect);
+            }
+
+            function missFilenameFromImg(img) {
+                let filename = img.alt || 'unknown';
+                if (selectedMissLink) {
+                    filename = selectedMissLink.textContent
+                        .replace(' 📈', '')
+                        .replace(' 📊', '')
+                        .trim();
+                }
+                return filename;
+            }
+
+            function clientToPng(img, clientX, clientY) {
+                const rect = img.getBoundingClientRect();
+                const scaleX = img.naturalWidth / rect.width;
+                const scaleY = img.naturalHeight / rect.height;
+                const x = Math.round((clientX - rect.left) * scaleX);
+                const y = Math.round((clientY - rect.top) * scaleY);
+                return {
+                    x: Math.max(0, Math.min(img.naturalWidth - 1, x)),
+                    y: Math.max(0, Math.min(img.naturalHeight - 1, y)),
+                    displayX: clientX - rect.left,
+                    displayY: clientY - rect.top,
+                    rect: rect
+                };
+            }
+
+            function addMissPointMarker(img, yPx, role) {
+                const markers = document.getElementById('miss-markers');
+                if (!markers || !img.naturalHeight) return;
+                const rect = img.getBoundingClientRect();
+                const displayY = (yPx / img.naturalHeight) * rect.height;
+                const marker = document.createElement('div');
+                marker.className = 'miss-marker ' + role;
+                marker.style.top = displayY + 'px';
+                const label = document.createElement('span');
+                label.className = 'miss-marker-label';
+                label.textContent = role === 'signal' ? 'signal' : 'background';
+                marker.appendChild(label);
+                markers.appendChild(marker);
+            }
+
+            function addMissRangeBand(img, y0Px, y1Px, role) {
+                const markers = document.getElementById('miss-markers');
+                if (!markers || !img.naturalHeight) return;
+                const rect = img.getBoundingClientRect();
+                const topPx = Math.min(y0Px, y1Px);
+                const botPx = Math.max(y0Px, y1Px);
+                const top = (topPx / img.naturalHeight) * rect.height;
+                const height = Math.max(2, ((botPx - topPx) / img.naturalHeight) * rect.height);
+                const band = document.createElement('div');
+                band.className = 'miss-band ' + role;
+                band.style.top = top + 'px';
+                band.style.height = height + 'px';
+                const label = document.createElement('span');
+                label.className = 'miss-band-label';
+                label.textContent = (role === 'signal' ? 'signal' : 'background') + ' range';
+                band.appendChild(label);
+                markers.appendChild(band);
+            }
+
+            function updateDragRect(img, x0, y0, x1, y1) {
+                const dragRect = document.getElementById('miss-drag-rect');
+                if (!dragRect) return;
+                const left = Math.min(x0, x1);
+                const top = Math.min(y0, y1);
+                const width = Math.abs(x1 - x0);
+                const height = Math.abs(y1 - y0);
+                dragRect.style.display = 'block';
+                dragRect.style.left = left + 'px';
+                dragRect.style.top = top + 'px';
+                dragRect.style.width = width + 'px';
+                dragRect.style.height = height + 'px';
+            }
+
+            async function submitMissSelection(payload, visual) {
+                const role = missClickPhase;
+                if (role === 'signal') {
+                    const markers = document.getElementById('miss-markers');
+                    if (markers) markers.innerHTML = '';
+                }
+                if (visual.kind === 'point') {
+                    addMissPointMarker(visual.img, visual.y, role);
+                } else {
+                    addMissRangeBand(visual.img, visual.y0, visual.y1, role);
+                }
+                console.log('MISS selection', payload);
+
+                try {
+                    const response = await fetch(MISS_CLICK_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    console.log('MISS selection server reply', result);
+
+                    if (result.status === 'need_background') {
+                        missClickPhase = 'background';
+                        if (missClickStatus) {
+                            missClickStatus.textContent =
+                                'Next: background (click or drag a range)';
+                        }
+                    } else if (result.status === 'plotted') {
+                        missClickPhase = 'signal';
+                        if (missClickStatus) {
+                            missClickStatus.textContent =
+                                'Spectrum plotted — next selection starts a new signal';
+                        }
+                    } else if (!result.ok) {
+                        if (missClickStatus) {
+                            missClickStatus.textContent = 'Selection failed — see console';
+                        }
+                    }
+                } catch (err) {
+                    console.warn(
+                        'MISS click server unreachable. Start it with: python miss_spectrum_server.py',
+                        err
+                    );
+                    if (missClickStatus) {
+                        missClickStatus.textContent =
+                            'Server unreachable — run: python miss_spectrum_server.py';
+                    }
+                    if (missClickPhase === 'signal') {
+                        missClickPhase = 'background';
+                    } else {
+                        missClickPhase = 'signal';
+                    }
+                }
+            }
+
+            missViewer.addEventListener('mousedown', function(e) {
+                const img = e.target;
+                if (!img || img.tagName !== 'IMG' || !img.naturalWidth) return;
+                if (e.button !== 0) return;
+                e.preventDefault();
+                const pos = clientToPng(img, e.clientX, e.clientY);
+                missDrag = {
+                    img: img,
+                    startX: pos.x,
+                    startY: pos.y,
+                    startDisplayX: pos.displayX,
+                    startDisplayY: pos.displayY
+                };
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!missDrag) return;
+                const img = missDrag.img;
+                const pos = clientToPng(img, e.clientX, e.clientY);
+                updateDragRect(
+                    img,
+                    missDrag.startDisplayX,
+                    missDrag.startDisplayY,
+                    pos.displayX,
+                    pos.displayY
+                );
+            });
+
+            document.addEventListener('mouseup', async function(e) {
+                if (!missDrag) return;
+                const img = missDrag.img;
+                const start = missDrag;
+                missDrag = null;
+                const dragRect = document.getElementById('miss-drag-rect');
+                if (dragRect) dragRect.style.display = 'none';
+
+                const pos = clientToPng(img, e.clientX, e.clientY);
+                const dx = pos.x - start.startX;
+                const dy = pos.y - start.startY;
+                const moved = Math.hypot(dx, dy);
+                const filename = missFilenameFromImg(img);
+                const role = missClickPhase;
+
+                let payload;
+                let visual;
+                if (moved < DRAG_THRESHOLD_PX) {
+                    payload = {
+                        filename: filename,
+                        kind: 'point',
+                        x: start.startX,
+                        y: start.startY,
+                        naturalWidth: img.naturalWidth,
+                        naturalHeight: img.naturalHeight,
+                        role: role
+                    };
+                    visual = { kind: 'point', img: img, y: start.startY };
+                } else {
+                    payload = {
+                        filename: filename,
+                        kind: 'range',
+                        x0: start.startX,
+                        y0: start.startY,
+                        x1: pos.x,
+                        y1: pos.y,
+                        naturalWidth: img.naturalWidth,
+                        naturalHeight: img.naturalHeight,
+                        role: role
+                    };
+                    visual = { kind: 'range', img: img, y0: start.startY, y1: pos.y };
+                }
+                await submitMissSelection(payload, visual);
             });
             
             // Keyboard navigation

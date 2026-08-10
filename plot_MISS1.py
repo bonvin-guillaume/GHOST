@@ -7,14 +7,50 @@ Reads ASCII PGM files and generates spectral plots.
 
 import os
 import ast
+import json
 import pandas as pd
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 from scipy.signal import medfilt2d
 
 row_offset = 70
+PLOT_DPI = 100
+PLOT_PAD_INCHES = 0.1
+
+
+def _use_agg_backend():
+    """Force non-interactive backend for batch PNG export."""
+    import matplotlib
+    matplotlib.use('Agg', force=True)
+    global plt
+    import matplotlib.pyplot as _plt
+    plt = _plt
+
+
+def write_plot_sidecar(fig, ax, output_path, meta):
+    """Write JSON next to the PNG with axes bbox in saved-image pixels.
+
+    axes_bbox_px is [left, bottom, width, height] with bottom measured from
+    the bottom of the saved PNG (matplotlib convention).
+    """
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    tight = fig.get_tightbbox(renderer).padded(PLOT_PAD_INCHES)
+    ax_inches = ax.get_window_extent(renderer).transformed(
+        fig.dpi_scale_trans.inverted()
+    )
+    dpi = fig.dpi
+    left = (ax_inches.x0 - tight.x0) * dpi
+    bottom = (ax_inches.y0 - tight.y0) * dpi
+    width = ax_inches.width * dpi
+    height = ax_inches.height * dpi
+    meta = dict(meta)
+    meta['image_size_px'] = [tight.width * dpi, tight.height * dpi]
+    meta['axes_bbox_px'] = [left, bottom, width, height]
+    meta['dpi'] = dpi
+    sidecar_path = os.path.splitext(output_path)[0] + '.json'
+    with open(sidecar_path, 'w', encoding='utf-8') as f:
+        json.dump(meta, f, indent=2)
 
 def readpgm(name):
     """Read ASCII PGM-file (P2 format)."""
@@ -77,6 +113,7 @@ def read_miss_spectral(filename):
 
 def save_spectral_plot(spectralimage, output_path, filename, selected_row=125):
     """Create and save plot of the spectral image."""
+    _use_agg_backend()
     fig, ax = plt.subplots(figsize=(10, 6))
     im = ax.imshow(np.sqrt(spectralimage), aspect='auto', extent=[400, 700, 200, 0]) # dynamic range compression, nonlinear intensity stretch
     # im = ax.imshow(np.log10(spectralimage + 1), aspect='auto', extent=[400, 700, 200, 0]) # Log stretch: compresses the dynamic range even more and is often useful when intensities span several orders of magnitude
@@ -88,11 +125,34 @@ def save_spectral_plot(spectralimage, output_path, filename, selected_row=125):
     ax.set_yticklabels(tick_labels)
     ax.grid(axis='both', linestyle='--', linewidth=0.5, alpha=0.7)
     ax.set_xlabel('Wavelength [nm]')
-    ax.set_ylabel('Scan angle from zenith [deg]') # Simple linear approximation
+    ax.set_ylabel('Angle from zenith [deg]') # Simple linear approximation
     title = f'{filename}'
     ax.set_title(title)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=100, bbox_inches='tight')
+    fig.set_dpi(PLOT_DPI)
+    write_plot_sidecar(
+        fig,
+        ax,
+        output_path,
+        {
+            'instrument': 'MISS1',
+            'source_filename': filename,
+            'wavelength_min': 400,
+            'wavelength_max': 700,
+            'scan_min': 0,
+            'scan_max': 200,
+            'y_top_is_scan': 0,
+            'y_bottom_is_scan': 200,
+            'n_scan': int(spectralimage.shape[0]),
+            'n_wavelength': int(spectralimage.shape[1]),
+        },
+    )
+    plt.savefig(
+        output_path,
+        dpi=PLOT_DPI,
+        bbox_inches='tight',
+        pad_inches=PLOT_PAD_INCHES,
+    )
     plt.close(fig)
 
 
