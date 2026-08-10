@@ -829,9 +829,9 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
                 return best;
             }}
 
-            // When a SONY file is shown, update MISS (col 4, cells[3]) and GOA (col 6, cells[5])
-            // using a floor/truncation rule: show the frame whose timestamp equals
-            // floor(T_sony, 1 min) for MISS and floor(T_sony, 2 min) for GOA.
+            // When a SONY file is shown, update MISS (col 4, cells[3]) and GOA (col 6, cells[5]).
+            // MISS: latest frame at or before T_sony (works for MISS-1 ~1 min and MISS-2 15 s).
+            // GOA: frame at floor(T_sony, 2 min).
             function syncViewersToSony(sonyLink) {{
                 const ts = parseInt(sonyLink.getAttribute('data-timestamp'), 10);
                 if (isNaN(ts)) return;
@@ -841,15 +841,13 @@ def generate_html_table(input_csv='ghost_df.csv', output_html='interactive_GHOST
 
                 const cells = row.querySelectorAll('td');
 
-                // floor to 1-minute boundary for MISS (60 000 ms)
-                const missFloorTs = Math.floor(ts / 60000) * 60000;
                 // floor to 2-minute boundary for GOA (120 000 ms)
                 const goaFloorTs  = Math.floor(ts / 120000) * 120000;
 
                 // MISS Files are in the 4th column (0-based index 3)
                 if (cells[3]) {{
                     const missLinks = Array.from(cells[3].querySelectorAll('a[data-timestamp]'));
-                    const floorMiss = _findFloor(missLinks, missFloorTs);
+                    const floorMiss = _findFloor(missLinks, ts);
                     if (floorMiss) displayFile(floorMiss, false);
                 }}
 
