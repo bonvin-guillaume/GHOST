@@ -250,7 +250,7 @@ def plot_spectra(
     fig, (ax_spec, ax_img) = plt.subplots(
         2,
         1,
-        figsize=(10, 9),
+        figsize=(9, 8),
         gridspec_kw={"height_ratios": [1.2, 1.0]},
     )
 
@@ -292,6 +292,11 @@ def plot_spectra(
     ax_img.legend(loc="upper right", fontsize=8)
 
     fig.tight_layout()
+    # Toolbar "Save" dialog prefills from the window title (see
+    # FigureCanvasBase.get_default_filename).
+    save_stem = f"{Path(filename).stem}_spectrum"
+    if fig.canvas.manager is not None:
+        fig.canvas.manager.set_window_title(save_stem)
     print(
         f"[spectrum] Showing plot for {filename} "
         f"(signal rows {sig_r0}–{sig_r1}, background rows {bg_r0}–{bg_r1})"
