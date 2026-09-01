@@ -25,6 +25,7 @@ from PIL import Image
 
 PLOT_DPI = 100
 PLOT_PAD_INCHES = 0.1
+REGENERATE_ALL_PLOTS = False
 
 
 def _use_agg_backend():
@@ -199,18 +200,25 @@ if __name__ == "__main__":
     
     # Generate plots for each PNG file
     successful_plots = 0
+    skipped_plots = 0
     failed_plots = []
     
     for i, (file_path, filename) in enumerate(all_png_files, 1):
         try:
+            plot_filename = filename.replace('.png', '_plot.png')
+            plot_path = join(plots_dir, plot_filename)
+
+            if not REGENERATE_ALL_PLOTS and isfile(plot_path):
+                skipped_plots += 1
+                print(f"Skipping {i}/{len(all_png_files)}: {filename} (plot already exists)")
+                continue
+
             print(f"Processing {i}/{len(all_png_files)}: {filename}...", end=' ')
             
             # Process spectral image
             spectralImage, wavelengths = miss2spectral(file_path)
             
             # Save plot
-            plot_filename = filename.replace('.png', '_plot.png')
-            plot_path = join(plots_dir, plot_filename)
             save_spectral_plot(spectralImage, wavelengths, plot_path, filename)
             
             successful_plots += 1
@@ -220,6 +228,8 @@ if __name__ == "__main__":
             failed_plots.append((filename, str(e)))
     
     print(f"\nCompleted: {successful_plots}/{len(all_png_files)} plots generated successfully")
+    if skipped_plots:
+        print(f"Skipped: {skipped_plots} existing plots")
     if failed_plots:
         print(f"Failed: {len(failed_plots)} files")
         for fname, error in failed_plots[:5]:  # Show first 5 failures

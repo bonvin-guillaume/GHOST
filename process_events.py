@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 
 
 # Input/output files
-INPUT_CSV = 'march2026_updated_GHOSTs_events.csv'
+INPUT_CSV = 'google_sheet_database/Aug2026_GHOSTs_events.csv'
 OUTPUT_CSV = 'ghost_df.csv'
 
 # Base directories for MISS-1/2 and SONY data
