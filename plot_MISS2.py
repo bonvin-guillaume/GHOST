@@ -8,18 +8,13 @@ steps. The rows correspond to uncalibrated zenith angle from north
 Mikko Syrjäsuo/UNIS, 2025-11-16
 
 """
-from datetime import datetime
-from os.path import isfile, join, basename
-from glob import glob # It might be better to get an iterator?
+from os.path import isfile, join
 import json
 import os
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import transforms
 from scipy.signal import medfilt2d
 from PIL import Image
 
