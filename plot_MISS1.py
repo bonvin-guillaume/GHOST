@@ -11,6 +11,7 @@ import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.ndimage import rotate
 from scipy.signal import medfilt2d
 
 row_offset = 70
@@ -80,6 +81,7 @@ def read_miss_spectral(filename):
 
     # Use 2D meridian filtering to filter out noise
     im = medfilt2d(im)
+    im = rotate(im, 0.1, reshape=False, order=1)
 
     # Estimate the background level from an image corner and remove the pixel offset
     bg_estimate = np.mean(im[0:29, 0:29])

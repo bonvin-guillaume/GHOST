@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import medfilt2d
+from scipy.ndimage import rotate
 from PIL import Image
 
 PLOT_DPI = 100
@@ -82,11 +83,13 @@ def miss2spectral(missFile):
     """
 
     missImage=np.array(Image.open(missFile))
-    imsize=np.shape(missImage)
+
     im=np.fliplr(np.rot90(missImage))
 
     # Use 2D meridian filtering to filter out noise
     im = medfilt2d(im)
+
+    im = rotate(im, -0.2, reshape=False, order=1)
 
     # Estimate the background level from an image corner and
     # remove the pixel offset
